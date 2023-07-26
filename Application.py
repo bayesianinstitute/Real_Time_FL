@@ -5,7 +5,7 @@ import torch
 import os
 from Requester import Requester
 # from Worker import Worker1
-from Worker import Worker
+from Worker1 import Worker
 from dotenv import load_dotenv
 from FSCommunicator import FSCommunicator
 import ipfshttpclient
@@ -126,7 +126,7 @@ class Application:
 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((HOST, PORT))
-        server_socket.listen(2)  # Allow two client connections
+        server_socket.listen(3)  # Allow two client connections
         print("Waiting for connections from clients...")
 
         # Accept connections from two clients
@@ -134,7 +134,7 @@ class Application:
         client_sockets = []
         worker_info_list = []
         # Accept connections from worker clients and store their socket information
-        for i in range(2):
+        for i in range(3):
             client_socket, addr = server_socket.accept()
             print("Connection from:", addr)
             client_sockets.append(client_socket)
