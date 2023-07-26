@@ -12,10 +12,12 @@ import ipfshttpclient
 import socket
 import pickle
 import json 
+import random
+
 from collections import OrderedDict
 
 HOST = 'localhost'
-PORT = 12348
+PORT = 12347
 
 # Main class to simulate the distributed application
 class Application:
@@ -35,11 +37,6 @@ class Application:
         self.ffi = None  # Add the FFI attribute and set it to None
         self.contract_address = None
 
-    # def __getstate__(self):
-    #     # Exclude the FFI attribute from serialization
-    #     state = self.__dict__.copy()
-    #     state.pop('ffi', None)
-    #     return state
         
  
     def send_data(self,socket, data):
@@ -79,7 +76,43 @@ class Application:
 
         return averaged_weights
 
- 
+    def save_worker_data_to_json(self, worker_data):
+        # Save the worker data dictionary to JSON file
+        with open('worker_data.json', 'w') as file:
+            json.dump(worker_data, file)
+
+    def load_worker_data_from_json(self):
+        # Load the worker data from JSON file
+        with open('worker_data.json', 'r') as file:
+            worker_data = json.load(file)
+        return worker_data
+    
+    def shuffle_worker_head(self,worker_head_ids):
+    # Randomly shuffle the worker head IDs to select one for each round
+        random.shuffle(worker_head_ids)
+        return worker_head_ids[0]
+    
+    def load_worker_head_ids(self,json_file):
+    # Load the JSON file and extract worker head IDs
+        with open(json_file, 'r') as f:
+            worker_head_ids = json.load(f)
+        return worker_head_ids
+
+
+    def choose_random_worker(self):
+        # Load worker data from the JSON file
+        worker_data = self.load_worker_data_from_json()
+        # Choose a random worker ID
+        random_worker_id = random.choice(list(worker_data.keys()))
+        return worker_data[random_worker_id]
+
+    def send_worker_data_to_clients(self, worker_data):
+        # Serialize the worker data
+        serialized_worker_data = json.dumps(worker_data).encode()
+
+        # Send the worker data to all clients
+        for client_socket in client_socket:
+            client_socket.send(serialized_worker_data)
 
     
     def run(self):
@@ -97,26 +130,110 @@ class Application:
         print("Waiting for connections from clients...")
 
         # Accept connections from two clients
+        # Create a list to store client sockets and worker data
         client_sockets = []
-        for _ in range(2):
+        worker_info_list = []
+        # Accept connections from worker clients and store their socket information
+        for i in range(2):
             client_socket, addr = server_socket.accept()
             print("Connection from:", addr)
             client_sockets.append(client_socket)
 
+            # You can also add any additional information about the worker here if needed
+            client_info = {
+                'address': addr[0],
+                'port': addr[1],
+                'workerid': i+1,
 
+                
+            }
+            worker_info_list.append(client_info)
 
-        print("Received all client connections")
+        # Save the worker information to JSON file
+        self.save_worker_data_to_json(worker_info_list)
+        print("Worker information saved")
+
         
+        print("Received all client connections")
+
+
+            
 
         self.requester.start_task()
+        new_port=[]
+        
+
+        for idx, client_socket in enumerate(client_sockets):
+            port = self.receive_data(client_socket)
+            print("Port", port)
+            new_port.append(port)
+            # Update the 'port' value in the client_info dictionary
+            worker_info_list[idx]['new_port'] = port
+
+        # Save the updated worker information with new ports to the JSON file
+        self.save_worker_data_to_json(worker_info_list)
+        print("Worker information with new ports saved")
+
+            # # You can also add any additional information about the worker here if needed
+            # client_info = {
+            #     'address': addr[0],
+            #     'port': addr[1],
+            #     'workerid': i+1,
+            #     'new_port':port,
+            # }
+
+            # worker_info_list.append(client_info)
+
+        # Save the worker information to JSON file
+        self.save_worker_data_to_json(worker_info_list)
+        print("port information saved")
+
 
         while True :
 
-            # Receive serialized data from each client
+            file_json=self.load_worker_data_from_json()
+
+            file_name='worker_data.json'
+
+            worker_head_ids = self.load_worker_head_ids(file_name)
+            worker_head_id = self.shuffle_worker_head(worker_head_ids)
+
+
+            print("suffle_id id ",worker_head_id)
+
+            try:
+                for idx,client_socket in enumerate(client_sockets):
+                    print("Sending json file to client:",idx+1)
+                    self.send_data(client_socket, file_json)
+                    self.send_data(client_socket,worker_head_id)
+                 # Receive acknowledgment from each client after sending the data
+                for idx, client_socket in enumerate(client_sockets):
+                    acknowledgment = self.receive_data(client_socket)
+                    print("Received Json File from client", idx + 1)
+
+            except ConnectionResetError:
+                # Handle the case when a client disconnects unexpectedly
+                print("Client", idx + 1, "disconnected.")
+                client_sockets.pop(idx)
+
+
+
+
+            except Exception as e:
+                print("Error sending data",e)
+
+            
+            
+
+
+
+
+            # Receive serialized data f1rom each client
             worker_weights = []
             for idx, client_socket in enumerate(client_sockets):
                 work_address = self.receive_data(client_socket)
                 # print("Serialized data from client", idx + 1, ":", work_address)
+
                 worker_weights.append(work_address)
 
             # Assuming you want to store the worker addresses in the worker_dict
@@ -129,7 +246,13 @@ class Application:
                 # Add the weight to the OrderedDict with the corresponding key
                 self.worker_dict[key] = weight
 
+                
+
             
+            # Choose a random worker and send its data to all clients
+            # random_worker_data = self.choose_random_worker()
+            # self.send_worker_data_to_clients(random_worker_data)
+
 
             print("Server is listening on {}:{}".format(HOST, PORT))
 

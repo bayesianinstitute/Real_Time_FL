@@ -236,8 +236,12 @@ class Worker:
     def send_data(self,socket, data):
         serialized_data = pickle.dumps(data)
         data_size = len(serialized_data)
-        socket.sendall(data_size.to_bytes(4, 'big'))  # Sending the size of data first
-        socket.sendall(serialized_data)              # Sending the actual data   
+        print("data size: ", data_size)
+        try: 
+            socket.sendall(data_size.to_bytes(4, 'big'))  # Sending the size of data first
+            socket.sendall(serialized_data)              # Sending the actual data   
+        except Exception as e:
+            print("Error in sending data",e)            # Sending the actual data   
 
     # Receive Data
     def receive_data(self,socket):
@@ -293,49 +297,157 @@ class Worker:
 
 
         return averaged_weights
-
+    
+    
 if __name__ == '__main__':
     ipfs_path = 'QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     is_evil = False
     topk = 1
     HOST = 'localhost'
-    PORT = 12348
+    PORT = 12347
+    client_port = 54321
+    client_port_next = 51311
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+    # Reuse the socket address to avoid conflicts when restarting the program
+    client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    # Bind the worker's socket to the specified port
+    client_socket.bind(('localhost', client_port))  # Bind to all available network interfaces
+
     client_socket.connect((HOST, PORT))
-    print("Connected to server")    
+    print("Connected to server")
+    current_port = client_socket.getsockname()[1]
+    print("current port : ", current_port)
     worker = Worker(ipfs_path, device, is_evil, topk)
+    worker.send_data(client_socket, client_port_next)
 
     while True:
-        
+        received_json = worker.receive_data(client_socket)
+        print("received_json : ", received_json)
+        received_headid = worker.receive_data(client_socket)
+        print("received_headid : ", received_headid)
 
-        contract_address='0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
+        contract_address = '0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
         # worker.join_task()
-        workerAddress=worker.workerAddress()
+        workerAddress = worker.workerAddress()
 
-        weights=worker.train(round=1)
+        # print("Connection close from worker1")
+        client_socket.close()
+        print("Connection close from Application")
 
-        worker.send_data(client_socket, weights)
-        print("Worker Sending Weights to server")
+        print("Training Model")
+        weights = worker.train(round=1)
 
-        average_Weight=worker.receive_data(client_socket)
-        print("Got Average Weight")
+        server_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket_peer.bind(('localhost', client_port_next))
+        server_socket_peer.listen(1)
 
-        # Perform testing with the updated model
-        test_accuracy = worker.test()
-        # print("Test Accuracy after round 1:", test_accuracy)
+        worker_dict = OrderedDict()
+        if received_headid['port'] == current_port:
+            print("I am the header")
 
-        worker.update_model(average_Weight)
+            peer_ip = received_json[1]['address']
+            peer_port = received_json[1]['new_port']
 
-        weights=worker.train(round=1)
+            print("peer ip {} and port {}, type: {}".format(peer_ip, peer_port, type(peer_port)))
 
-        worker.send_data(client_socket, weights)
-        print("Worker Sending Weights to server")
+            server_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket_peer.bind(('localhost', client_port_next))  # Bind to all available network interfaces
+            server_socket_peer.listen(1)
+
+            client_socket_peer, addr = server_socket_peer.accept()
+
+            print("Connected to peer")
+
+            worker_weights = []
+            worker_weights.append(weights)
+
+            received_weights = worker.receive_data(client_socket_peer)
+            print("received weights")
+            # print("Serialized data from client", idx + 1, ":", work_address)
+
+            worker_weights.append(received_weights)
+
+            # Assuming you want to store the worker addresses in the worker_dict
+
+            for idx, weight in enumerate(worker_weights):
+                # The key will be in the format 'worker_1_weights', 'worker_2_weights', and so on
+                key = f'worker_{idx + 1}_weights'
+                # Add the weight to the OrderedDict with the corresponding key
+                worker_dict[key] = weight
+
+            average_Weight = worker.average(worker_dict)
+            print("Average Done")
+            worker.send_data(client_socket_peer, average_Weight)
+            print("Average weights are sent")
+            worker.update_model(average_Weight)
+            print("Worker Update it works")
+
+        else:
+            peer_ip = received_json[1]['address']
+            peer_port = received_json[1]['new_port']
+
+            print("peer ip {} and port {}  ".format(peer_ip, peer_port))
+
+            client_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # client_socket_peer.bind(('localhost', client_port_next))  # Bind to all available network interfaces
+
+            client_socket_peer.connect((peer_ip, int(peer_port)))
+            print("connected to worker head peer")
+            worker.send_data(client_socket_peer, weights)
+            print("Worker Sending Weights to peer")
+
+            average_Weight = worker.receive_data(client_socket_peer)
+            print("Got Average Weight")
+            worker.update_model(average_Weight)
+            print("Updated model weights")
 
         # Perform testing with the updated model
         # test_accuracy = worker.test()
         # print("Test Accuracy after round 1:", test_accuracy)
+
+    #     worker.update_model(average_Weight)
+
+    #     weights=worker.train(round=1)
+
+    #     worker_dict =  OrderedDict()
+    #     if received_headid['workerid']==2:
+    #         worker_weights = []
+    #         worker_weights.append(weights)
+
+
+    #         received_weights=worker.receive_data(client_socket)
+    #             # print("Serialized data from client", idx + 1, ":", work_address)
+
+    #         worker_weights.append(received_weights)
+
+    #         # Assuming you want to store the worker addresses in the worker_dict
+        
+
+
+    #         for idx, weight in enumerate(worker_weights):
+    #             # The key will be in the format 'worker_1_weights', 'worker_2_weights', and so on
+    #             key = f'worker_{idx + 1}_weights'
+    #             # Add the weight to the OrderedDict with the corresponding key
+    #             worker_dict[key] = weight
+
+
+
+    #         average_Weight=worker.average(worker_dict)
+
+    #     else :
+
+    #         worker.send_data(client_socket, weights)
+    #         print("Worker Sending Weights to server")
+
+    #         average_Weight=worker.receive_data(client_socket)
+    #         print("Got Average Weight")
+
+    #     # Perform testing with the updated model
+    #     # test_accuracy = worker.test()
+    #     # print("Test Accuracy after round 1:", test_accuracy)
 
 
 
