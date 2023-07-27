@@ -73,6 +73,7 @@ class Requester:
 
         self.num_workers = self.contract_instance.functions.getNumWorkers().call() 
         self.init_score_matrix()
+        
     
     def next_round(self):
         self.contract_instance = self.w3.eth.contract(abi=self.truffle_file['abi'], address=self.contract_address)
