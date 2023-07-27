@@ -349,7 +349,6 @@ if __name__ == '__main__':
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict =  OrderedDict()
 
-
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -364,131 +363,138 @@ if __name__ == '__main__':
     worker.send_data(client_socket, client_port_next)
 
     received_json = worker.receive_data(client_socket)
-    print("received_json : ", received_json)
     received_headid = worker.receive_data(client_socket)
-    print("received_headid : ", received_headid)
-
     while True:
+            print("received_json : ", received_json)
+            print("received_headid : ", received_headid)
+
+            contract_address = '0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
+            # worker.join_task()
+            workerAddress = worker.workerAddress()
+
+            # print("Connection close from worker1")
+            client_socket.close()
+            print("Connection close from Application")
+
+            print("Training Model")
+            weights = worker.train(round=1)
 
 
-        contract_address = '0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
-        # worker.join_task()
-        workerAddress = worker.workerAddress()
+            is_header = True
+            worker_dict = OrderedDict()
+            if received_headid['port'] == current_port:
+                print("I am the header")
 
-        # print("Connection close from worker1")
-        client_socket.close()
-        print("Connection close from Application")
+                server_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                server_socket_peer.bind(('localhost', client_port_next))  # Bind to all available network interfaces
+                server_socket_peer.listen(2)
 
-        print("Training Model")
-        weights = worker.train(round=1)
+                client_sockets = []
 
-
-
-        worker_dict = OrderedDict()
-        if received_headid['port'] == current_port:
-            print("I am the header")
-
-            server_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket_peer.bind(('localhost', client_port_next))  # Bind to all available network interfaces
-            server_socket_peer.listen(2)
-
-            client_sockets = []
-
-            for i in range(2):
-                client_socket, addr = server_socket_peer.accept()
-                print("Connection from:", addr)
-                client_sockets.append(client_socket)
+                for i in range(2):
+                    client_socket, addr = server_socket_peer.accept()
+                    print("Connection from:", addr)
+                    client_sockets.append(client_socket)
 
 
-            print("Connected to peer")
+                print("Connected to peer")
 
-            worker_weights = []
-            for idx, client_socket in enumerate(client_sockets):
-                work_address = worker.receive_data(client_socket)
-                print("Receive data from client", idx + 1, ":", work_address)
+                worker_weights = []
+                for idx, client_socket in enumerate(client_sockets):
+                    work_address = worker.receive_data(client_socket)
+                    print("Receive data from client", idx + 1, ":", work_address)
 
-                worker_weights.append(work_address)
+                    worker_weights.append(work_address)
 
-            # Assuming you want to store the worker addresses in the worker_dict
-        
+                # Assuming you want to store the worker addresses in the worker_dict
 
+                for idx, weight in enumerate(worker_weights):
+                    # The key will be in the format 'worker_1_weights', 'worker_2_weights', and so on
+                    key = f'worker_{idx + 1}_weights'
+                    # Add the weight to the OrderedDict with the corresponding key
+                    worker_dict[key] = weight
 
-            for idx, weight in enumerate(worker_weights):
-                # The key will be in the format 'worker_1_weights', 'worker_2_weights', and so on
-                key = f'worker_{idx + 1}_weights'
-                # Add the weight to the OrderedDict with the corresponding key
-                worker_dict[key] = weight
+                averaged_weights=worker.average(worker_dict)
 
-            averaged_weights=worker.average(worker_dict)
+                print("Averaged weights are Done")
 
-            print("Averaged weights are Done")
-
-            try:
-                for idx,client_socket in enumerate(client_sockets):
-                    print("Sending weight to client:",idx+1)
-                    worker.send_data(client_socket, averaged_weights)
-                    print("Sent new weights to clients",idx+1)
+                try:
+                    for idx,client_socket in enumerate(client_sockets):
+                        print("Sending weight to client:",idx+1)
+                        worker.send_data(client_socket, averaged_weights)
+                        print("Sent new weights to clients",idx+1)
 
 
-            except ConnectionResetError:
-                # Handle the case when a client disconnects unexpectedly
-                print("Client", idx + 1, "disconnected.")
-                client_sockets.pop(idx)
+                except ConnectionResetError:
+                    # Handle the case when a client disconnects unexpectedly
+                    print("Client", idx + 1, "disconnected.")
+                    client_sockets.pop(idx)
+
+                worker.update_model(averaged_weights)
+                print("Worker Update it works")
+
+                file_name='worker_data.json'
+
+                # worker_head_ids = received_json
+                worker_head_id = worker.shuffle_worker_head(received_json)
+
+                print("suffle_id id ",worker_head_id)
+
+                old_client_port_next=client_port_next
+
+                if worker_head_id!=client_port_next:
+                        
+                        client_port_next = random.randint(50000, 60000) 
+
+    # Update the 'new_port' value in the received_headid dictionary
+                        received_json[0]['new_port'] = client_port_next
+
+
+                try:
+                    for idx,client_socket in enumerate(client_sockets):
+                        print("Sending json file to client:",idx+1)
+                        worker.send_data(client_socket,worker_head_id)
+                    # Receive acknowledgment from each client after sending the data
+
+                except ConnectionResetError:
+                    # Handle the case when a client disconnects unexpectedly
+                    print("Client", idx + 1, "disconnected.")
+                    client_sockets.pop(idx)
+
+                except Exception as e:
+                    print("Error sending data",e)
+
+                    # Check if the worker's ID matches the new shuffled ID
+                if  received_headid['port'] != old_client_port_next:
+
+                    print("I am no longer the header.")
+
+                    continue
 
 
 
-            worker.update_model(averaged_weights)
-            print("Worker Update it works")
+            else :
+                peer_ip = received_headid['address']
+                peer_port = received_headid['new_port']
 
+                print("peer ip {} and port {}  ".format(peer_ip, peer_port))
 
-            file_name='worker_data.json'
+                try:
+                    client_socket_peer = worker.connect_to_peer(peer_ip, peer_port)
+                    worker.send_data(client_socket_peer, weights)
+                    print("Worker Sending Weights to peer")
 
-            worker_head_ids = worker.load_worker_head_ids(file_name)
-            worker_head_id = worker.shuffle_worker_head(worker_head_ids)
+                    average_Weight = worker.receive_data(client_socket_peer)
+                    print("Got Average Weight")
+                    worker.update_model(average_Weight)
+                    print("Updated model weights")
 
+                    received_headid = worker.receive_data(client_socket_peer)
+                    print("received_headid : ", received_headid)
 
-            print("suffle_id id ",worker_head_id)
+                    client_socket_peer.close()
 
-            try:
-                for idx,client_socket in enumerate(client_sockets):
-                    print("Sending json file to client:",idx+1)
-                    worker.send_data(client_socket,worker_head_id)
-                 # Receive acknowledgment from each client after sending the data
+                except Exception as e:
+                    print("Error during peer connection:", e)
 
-            except ConnectionResetError:
-                # Handle the case when a client disconnects unexpectedly
-                print("Client", idx + 1, "disconnected.")
-                client_sockets.pop(idx)
-
-
-
-
-            except Exception as e:
-                print("Error sending data",e)
-
-        else:
-            peer_ip = received_headid['address']
-            peer_port = received_headid['new_port']
-
-            print("peer ip {} and port {}  ".format(peer_ip, peer_port))
-
-            try:
-                client_socket_peer = worker.connect_to_peer(peer_ip, peer_port)
-                worker.send_data(client_socket_peer, weights)
-                print("Worker Sending Weights to peer")
-
-                average_Weight = worker.receive_data(client_socket_peer)
-                print("Got Average Weight")
-                worker.update_model(average_Weight)
-                print("Updated model weights")
-
-                received_headid = worker.receive_data(client_socket_peer)
-                print("received_headid : ", received_headid)
-
-                client_socket_peer.close()
-
-            except Exception as e:
-                print("Error during peer connection:", e)
-
-    client_socket.close()
-    print("Connection close from Application")
+    
