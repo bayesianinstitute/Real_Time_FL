@@ -349,6 +349,7 @@ if __name__ == '__main__':
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict =  OrderedDict()
 
+
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -363,10 +364,10 @@ if __name__ == '__main__':
     worker.send_data(client_socket, client_port_next)
 
     received_json = worker.receive_data(client_socket)
+    print("received_json : ", received_json)
     received_headid = worker.receive_data(client_socket)
+    print("received_headid : ", received_headid)
     while True:
-            print("received_json : ", received_json)
-            print("received_headid : ", received_headid)
 
             contract_address = '0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
             # worker.join_task()
@@ -407,6 +408,8 @@ if __name__ == '__main__':
                     worker_weights.append(work_address)
 
                 # Assuming you want to store the worker addresses in the worker_dict
+            
+
 
                 for idx, weight in enumerate(worker_weights):
                     # The key will be in the format 'worker_1_weights', 'worker_2_weights', and so on
@@ -430,24 +433,31 @@ if __name__ == '__main__':
                     print("Client", idx + 1, "disconnected.")
                     client_sockets.pop(idx)
 
+
+
                 worker.update_model(averaged_weights)
                 print("Worker Update it works")
+
 
                 file_name='worker_data.json'
 
                 # worker_head_ids = received_json
                 worker_head_id = worker.shuffle_worker_head(received_json)
 
+
                 print("suffle_id id ",worker_head_id)
+
+
+
 
                 old_client_port_next=client_port_next
 
-                if worker_head_id!=client_port_next:
+    #             if worker_head_id!=client_port_next:
                         
-                        client_port_next = random.randint(50000, 60000) 
+    #                     client_port_next = random.randint(50000, 60000) 
 
-    # Update the 'new_port' value in the received_headid dictionary
-                        received_json[0]['new_port'] = client_port_next
+    # # Update the 'new_port' value in the received_headid dictionary
+    #                     received_json[1]['new_port'] = client_port_next
 
 
                 try:
@@ -461,13 +471,20 @@ if __name__ == '__main__':
                     print("Client", idx + 1, "disconnected.")
                     client_sockets.pop(idx)
 
+
+
+
                 except Exception as e:
                     print("Error sending data",e)
 
                     # Check if the worker's ID matches the new shuffled ID
                 if  received_headid['port'] != old_client_port_next:
 
+                # If the worker is no longer the header, exit the header loop
+                
                     print("I am no longer the header.")
+                    # is_header=Falseasa
+
 
                     continue
 

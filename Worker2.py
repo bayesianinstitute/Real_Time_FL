@@ -364,13 +364,10 @@ if __name__ == '__main__':
     worker.send_data(client_socket, client_port_next)
 
     received_json = worker.receive_data(client_socket)
+    print("received_json : ", received_json)
     received_headid = worker.receive_data(client_socket)
-    
+    print("received_headid : ", received_headid)
     while True:
-            print("received_json : ", received_json)
-            
-            print("received_headid : ", received_headid)
-            
 
             contract_address = '0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
             # worker.join_task()
@@ -384,7 +381,7 @@ if __name__ == '__main__':
             weights = worker.train(round=1)
 
 
-            # is_header = True
+            is_header = True
             worker_dict = OrderedDict()
             if received_headid['port'] == current_port:
                 print("I am the header")
@@ -455,12 +452,12 @@ if __name__ == '__main__':
 
                 old_client_port_next=client_port_next
 
-                if worker_head_id!=client_port_next:
+    #             if worker_head_id!=client_port_next:
                         
-                        client_port_next = random.randint(50000, 60000) 
+    #                     client_port_next = random.randint(50000, 60000) 
 
-    # Update the 'new_port' value in the received_headid dictionary
-                        received_json[1]['new_port'] = client_port_next
+    # # Update the 'new_port' value in the received_headid dictionary
+    #                     received_json[1]['new_port'] = client_port_next
 
 
                 try:
