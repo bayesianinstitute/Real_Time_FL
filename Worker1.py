@@ -12,6 +12,11 @@ from FSCommunicator import FSCommunicator
 import ipfshttpclient
 import io
 
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.backends import default_backend
+
 import torch
 import torchvision
 import torch.nn.functional as F
@@ -26,11 +31,12 @@ if __name__ == '__main__':
     is_evil = False
     topk = 1
     HOST = 'localhost'
-    PORT = 12346
+    PORT = 12347
     client_port = random.randint(40000, 50000)
     client_port_next = random.randint(50000, 60000)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict = OrderedDict()
+    worker_id = 1
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -61,6 +67,8 @@ if __name__ == '__main__':
         print("received_headid : ", received_headid)
 
         weights = worker.train(round=1)
+
+        worker_index = received_headid['workerid']
 
         is_header = True
         worker_dict = OrderedDict()
@@ -96,40 +104,77 @@ if __name__ == '__main__':
             averaged_weights = worker.average(worker_dict)
             print("Averaged weights are Done")
 
+            worker.update_model(averaged_weights)
+            print("Worker Update it works and adding weight to ipfs")
+
+            model_filename = 'save_model/model_index_{}.pt'.format(worker_index)
+            torch.save(averaged_weights, model_filename)
+            print("MODEL SAVE TO LOCAL")
+
+
+        
+
+            # Load file into memory
+            with open(model_filename , "rb") as f:
+                file_contents = f.read()
+
+            # Encrypt file with AES key
+            encrypted_file = worker.fernet.encrypt(file_contents)
+
+            # Encrypt AES key with RSA public key
+            encrypted_aes_key = worker.public_key.encrypt(
+                worker.aes_key,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
+            )
+            
+            
+            model_filename1 = 'encrypted_model/model_encrypted_index_{}.pt'.format(worker_index)
+            k="encrypted_model/aes_key_encrypted_index_{}.pem".format(worker_index)
+            # Save encrypted file and encrypted AES key to disk
+            with open(model_filename1, "wb") as f:
+                f.write(encrypted_file)
+
+            with open(k, "wb") as f:
+                f.write(encrypted_aes_key)
+
+            # Add the file to IPFS and get the new hash
+            model_has = worker.client.add(model_filename1)
+           
+
+            model_has = worker.client_url.add(model_filename1)
+            model_hash = model_has['Hash']
+
             try:
                 for idx, client_socket in enumerate(client_sockets):
-                    print("Sending weight to client:", idx + 1)
-                    worker.send_data(client_socket, averaged_weights)
-                    print("Sent new weights to clients", idx + 1)
+                    print("Sending ipfs hash to client:", idx + 1)
+                    worker.send_data(client_socket, model_hash)
+                    print("Sent ipfs hash to clients", idx + 1)
 
             except ConnectionResetError:
                 # Handle the case when a client disconnects unexpectedly
                 print("Client", idx + 1, "disconnected.")
                 client_sockets.pop(idx)
 
-            worker.update_model(averaged_weights)
-            print("Worker Update it works")
-
             file_name = 'worker_data.json'
             worker_head_id = worker.shuffle_worker_head(received_json)
-            print("suffle_id id ", worker_head_id)
+            print("shuffle_id id ", worker_head_id)
             print("client_port_next_id ", client_port_next)
 
             old_client_port_next = client_port_next
-
-            # worker_head_id = 2  # Example worker ID for demonstration
 
             if worker_head_id != client_port_next:
                 client_port_next = random.randint(50000, 60000)
                 # Find the dictionary with 'workerid' equal to worker_head_id and update its 'new_port' value
                 for entry in received_json:
-                    if entry['workerid'] == 1:
+                    if entry['workerid'] == worker_id:
                         entry['new_port'] = client_port_next
                         break
 
-                # Write the updated JSON data back to the file
-            
-            received_headid=worker_head_id
+            received_headid = worker_head_id
 
             try:
                 for idx, client_socket in enumerate(client_sockets):
@@ -169,11 +214,51 @@ if __name__ == '__main__':
                 worker.send_data(client_socket_peer, weights)
                 print("Worker Sending Weights to peer")
 
-                print("received_json",received_json)
+                print("received_json", received_json)
+
+                get_hash = worker.receive_data(client_socket_peer)
+                print("Got ipfs Hash", get_hash)
+
+                k="encrypted_key/aes_key_encrypted_index_{}.pem".format(round, worker_index)
+                print("Key file : ", k)
 
 
-                average_Weight = worker.receive_data(client_socket_peer)
-                print("Got Average Weight")
+                with open(k, "rb") as f:
+                    encrypted_aes_key = f.read()
+            
+                print("Encryption key", worker.aes_key)
+                
+
+              # Decrypt the AES key with the private RSA key
+                decrypted_aes_key = worker.private_key.decrypt(
+                    encrypted_aes_key,
+                    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),algorithm=hashes.SHA256(),label=None)
+                )
+                print("Decryption Key", decrypted_aes_key)
+                # Create a Fernet object using the decrypted AES key
+                fernet = Fernet(decrypted_aes_key)
+
+                # Load the encrypted model from the disk
+            
+                model_filename1 = 'encrypted_model/model_encrypted_index_{}.pt'.format( worker_index)
+
+                print(model_filename1)
+                with open(model_filename1, "rb") as f:
+                    encrypted_model = f.read()
+                    
+                model_filename2 = 'decrypted_model/Decriprited_model_index_{}.pt'.format(worker_index)
+                print(model_filename2)
+                # Decrypt the encrypted model using the Fernet object
+                decrypted_model = fernet.decrypt(encrypted_model)
+
+                # Save the decrypted model to the disk
+                with open(model_filename2, "wb") as f:
+                    f.write(decrypted_model)
+
+
+                average_Weight = torch.load(model_filename2)
+
+
                 worker.update_model(average_Weight)
                 print("Updated model weights")
 
@@ -185,9 +270,8 @@ if __name__ == '__main__':
                 if received_headid['new_port'] == client_port_next:
                     print("I am the header again.")
                     is_header = True
-                else :
-                    is_header =False
-                    
+                else:
+                    is_header = False
+
             except Exception as e:
                 print("Error during peer connection:", e)
-

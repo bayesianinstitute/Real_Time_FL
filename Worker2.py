@@ -26,11 +26,12 @@ if __name__ == '__main__':
     is_evil = False
     topk = 1
     HOST = 'localhost'
-    PORT = 12346
+    PORT = 12347
     client_port = random.randint(40000, 50000)
     client_port_next = random.randint(50000, 60000)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict = OrderedDict()
+    worker_id = 2
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -61,6 +62,8 @@ if __name__ == '__main__':
         print("received_headid : ", received_headid)
 
         weights = worker.train(round=1)
+
+        worker_index = received_headid['workerid']
 
         is_header = True
         worker_dict = OrderedDict()
@@ -96,40 +99,42 @@ if __name__ == '__main__':
             averaged_weights = worker.average(worker_dict)
             print("Averaged weights are Done")
 
+            worker.update_model(averaged_weights)
+            print("Worker Update it works and adding weight to ipfs")
+
+            model_filename = 'save_model/model_index_{}.pt'.format(worker_index)
+            torch.save(averaged_weights, model_filename)
+            print("MODEL SAVE TO LOCAL")
+
+            model_hash = worker.client_url.add(model_filename)
+
             try:
                 for idx, client_socket in enumerate(client_sockets):
-                    print("Sending weight to client:", idx + 1)
-                    worker.send_data(client_socket, averaged_weights)
-                    print("Sent new weights to clients", idx + 1)
+                    print("Sending ipfs hash to client:", idx + 1)
+                    worker.send_data(client_socket, model_hash)
+                    print("Sent ipfs hash to clients", idx + 1)
 
             except ConnectionResetError:
                 # Handle the case when a client disconnects unexpectedly
                 print("Client", idx + 1, "disconnected.")
                 client_sockets.pop(idx)
 
-            worker.update_model(averaged_weights)
-            print("Worker Update it works")
-
             file_name = 'worker_data.json'
             worker_head_id = worker.shuffle_worker_head(received_json)
-            print("suffle_id id ", worker_head_id)
+            print("shuffle_id id ", worker_head_id)
             print("client_port_next_id ", client_port_next)
 
             old_client_port_next = client_port_next
-
-            # worker_head_id = 2  # Example worker ID for demonstration
 
             if worker_head_id != client_port_next:
                 client_port_next = random.randint(50000, 60000)
                 # Find the dictionary with 'workerid' equal to worker_head_id and update its 'new_port' value
                 for entry in received_json:
-                    if entry['workerid'] == 2:
+                    if entry['workerid'] == worker_id:
                         entry['new_port'] = client_port_next
                         break
 
-                # Write the updated JSON data back to the file
-            
-            received_headid=worker_head_id
+            received_headid = worker_head_id
 
             try:
                 for idx, client_socket in enumerate(client_sockets):
@@ -169,11 +174,19 @@ if __name__ == '__main__':
                 worker.send_data(client_socket_peer, weights)
                 print("Worker Sending Weights to peer")
 
-                print("received_json",received_json)
+                print("received_json", received_json)
+
+                get_hash = worker.receive_data(client_socket_peer)
+                print("Got ipfs Hash", get_hash["Hash"])
 
 
-                average_Weight = worker.receive_data(client_socket_peer)
-                print("Got Average Weight")
+
+                model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
+
+
+
+                average_Weight = torch.load(model_filename)
+
                 worker.update_model(average_Weight)
                 print("Updated model weights")
 
@@ -185,9 +198,8 @@ if __name__ == '__main__':
                 if received_headid['new_port'] == client_port_next:
                     print("I am the header again.")
                     is_header = True
-                else :
-                    is_header =False
-                    
+                else:
+                    is_header = False
+
             except Exception as e:
                 print("Error during peer connection:", e)
-

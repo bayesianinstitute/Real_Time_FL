@@ -18,6 +18,11 @@ import torch.nn.functional as F
 from collections import OrderedDict
 import random
 import time
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.backends import default_backend
+
 
 class Model():
     '''
@@ -160,6 +165,27 @@ class Worker:
         opt = torch.load(io.BytesIO(
             optimizer_bytes), map_location=device)
         print("Done Optimizer !!!!!")
+
+                # Generate RSA key pair
+        self.private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        self.public_key = self.private_key.public_key()
+
+        # Serialize public key to PEM format
+        self.public_key_pem = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+
+        # Generate AES key
+        self.aes_key = Fernet.generate_key()
+        print("ase", self.aes_key)
+
+        # Create Fernet object with AES key
+        self.fernet = Fernet(self.aes_key)
 
         # model, opt = self.fsc.fetch_initial_model()
         self.is_evil = is_evil

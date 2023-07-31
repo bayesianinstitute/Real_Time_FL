@@ -17,7 +17,7 @@ import random
 from collections import OrderedDict
 
 HOST = 'localhost'
-PORT = 12346
+PORT = 12347
 
 # Main class to simulate the distributed application
 class Application:

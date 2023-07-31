@@ -78,7 +78,7 @@ class FSCommunicator:
             with open(k, "rb") as f:
                 encrypted_aes_key = f.read()
             
-            print("Decryption key", self.aes_key)
+            print("Encryption key", self.aes_key)
             
 
         # Decrypt the AES key with the private RSA key
@@ -86,7 +86,7 @@ class FSCommunicator:
                 encrypted_aes_key,
                 padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),algorithm=hashes.SHA256(),label=None)
             )
-            print("Encryption Key", decrypted_aes_key)
+            print("Decryption Key", decrypted_aes_key)
             # Create a Fernet object using the decrypted AES key
             fernet = Fernet(decrypted_aes_key)
 
