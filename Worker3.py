@@ -43,7 +43,7 @@ if __name__ == '__main__':
     print("Connected to server")
     current_port = client_socket.getsockname()[1]
     print("current port : ", current_port)
-    worker = Worker(ipfs_path, device, is_evil, topk)
+    worker = Worker(ipfs_path, device, is_evil, topk,worker_id)
     worker.send_data(client_socket, client_port_next)
 
     received_json = worker.receive_data(client_socket)

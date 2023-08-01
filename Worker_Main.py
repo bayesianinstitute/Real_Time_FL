@@ -146,27 +146,12 @@ class Worker:
 
     
 
-    def __init__(self, ipfs_path, device, is_evil, topk):
+    def __init__(self, ipfs_path, device, is_evil, topk,worker_id):
         # self.bcc = BCCommunicator()
         # self.fsc = FSCommunicator(ipfs_path, device)
 
-        self.key = os.getenv('WORKER1_KEY')
-        self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
 
-
-        self.model_hash = 'QmZaeFLUPJZopTvKWsuji2Q5RPWaTLBRtpCoBbDM6sDyqM'
-        model_bytes = self.client_url.cat(self.model_hash)
-        model = torch.jit.load(io.BytesIO(model_bytes),
-                               map_location=device)
-        print("Done Model!!!!!!")
-
-        optimizer_hash = 'Qmd96G9irL6hQuSfGFNoYqeVgg8DvAyv6GCt9CqCsEDj1w'
-        optimizer_bytes = self.client_url.cat(optimizer_hash)
-        opt = torch.load(io.BytesIO(
-            optimizer_bytes), map_location=device)
-        print("Done Optimizer !!!!!")
-
-                # Generate RSA key pair
+                        # Generate RSA key pair
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048,
@@ -186,6 +171,24 @@ class Worker:
 
         # Create Fernet object with AES key
         self.fernet = Fernet(self.aes_key)
+
+        self.key = os.getenv(f'WORKER{worker_id}_KEY')
+        self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+
+
+        self.model_hash = 'QmZaeFLUPJZopTvKWsuji2Q5RPWaTLBRtpCoBbDM6sDyqM'
+        model_bytes = self.client_url.cat(self.model_hash)
+        model = torch.jit.load(io.BytesIO(model_bytes),
+                               map_location=device)
+        print("Done Model!!!!!!")
+
+        optimizer_hash = 'Qmd96G9irL6hQuSfGFNoYqeVgg8DvAyv6GCt9CqCsEDj1w'
+        optimizer_bytes = self.client_url.cat(optimizer_hash)
+        opt = torch.load(io.BytesIO(
+            optimizer_bytes), map_location=device)
+        print("Done Optimizer !!!!!")
+
+
 
         # model, opt = self.fsc.fetch_initial_model()
         self.is_evil = is_evil

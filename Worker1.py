@@ -12,11 +12,6 @@ from FSCommunicator import FSCommunicator
 import ipfshttpclient
 import io
 
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.backends import default_backend
-
 import torch
 import torchvision
 import torch.nn.functional as F
@@ -48,7 +43,7 @@ if __name__ == '__main__':
     print("Connected to server")
     current_port = client_socket.getsockname()[1]
     print("current port : ", current_port)
-    worker = Worker(ipfs_path, device, is_evil, topk)
+    worker = Worker(ipfs_path, device, is_evil, topk,worker_id)
     worker.send_data(client_socket, client_port_next)
 
     received_json = worker.receive_data(client_socket)
@@ -111,42 +106,7 @@ if __name__ == '__main__':
             torch.save(averaged_weights, model_filename)
             print("MODEL SAVE TO LOCAL")
 
-
-        
-
-            # Load file into memory
-            with open(model_filename , "rb") as f:
-                file_contents = f.read()
-
-            # Encrypt file with AES key
-            encrypted_file = worker.fernet.encrypt(file_contents)
-
-            # Encrypt AES key with RSA public key
-            encrypted_aes_key = worker.public_key.encrypt(
-                worker.aes_key,
-                padding.OAEP(
-                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                    algorithm=hashes.SHA256(),
-                    label=None
-                )
-            )
-            
-            
-            model_filename1 = 'encrypted_model/model_encrypted_index_{}.pt'.format(worker_index)
-            k="encrypted_model/aes_key_encrypted_index_{}.pem".format(worker_index)
-            # Save encrypted file and encrypted AES key to disk
-            with open(model_filename1, "wb") as f:
-                f.write(encrypted_file)
-
-            with open(k, "wb") as f:
-                f.write(encrypted_aes_key)
-
-            # Add the file to IPFS and get the new hash
-            model_has = worker.client.add(model_filename1)
-           
-
-            model_has = worker.client_url.add(model_filename1)
-            model_hash = model_has['Hash']
+            model_hash = worker.client_url.add(model_filename)
 
             try:
                 for idx, client_socket in enumerate(client_sockets):
@@ -217,47 +177,15 @@ if __name__ == '__main__':
                 print("received_json", received_json)
 
                 get_hash = worker.receive_data(client_socket_peer)
-                print("Got ipfs Hash", get_hash)
-
-                k="encrypted_key/aes_key_encrypted_index_{}.pem".format(round, worker_index)
-                print("Key file : ", k)
+                print("Got ipfs Hash", get_hash["Hash"])
 
 
-                with open(k, "rb") as f:
-                    encrypted_aes_key = f.read()
-            
-                print("Encryption key", worker.aes_key)
-                
 
-              # Decrypt the AES key with the private RSA key
-                decrypted_aes_key = worker.private_key.decrypt(
-                    encrypted_aes_key,
-                    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),algorithm=hashes.SHA256(),label=None)
-                )
-                print("Decryption Key", decrypted_aes_key)
-                # Create a Fernet object using the decrypted AES key
-                fernet = Fernet(decrypted_aes_key)
-
-                # Load the encrypted model from the disk
-            
-                model_filename1 = 'encrypted_model/model_encrypted_index_{}.pt'.format( worker_index)
-
-                print(model_filename1)
-                with open(model_filename1, "rb") as f:
-                    encrypted_model = f.read()
-                    
-                model_filename2 = 'decrypted_model/Decriprited_model_index_{}.pt'.format(worker_index)
-                print(model_filename2)
-                # Decrypt the encrypted model using the Fernet object
-                decrypted_model = fernet.decrypt(encrypted_model)
-
-                # Save the decrypted model to the disk
-                with open(model_filename2, "wb") as f:
-                    f.write(decrypted_model)
+                model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
 
 
-                average_Weight = torch.load(model_filename2)
 
+                average_Weight = torch.load(model_filename)
 
                 worker.update_model(average_Weight)
                 print("Updated model weights")

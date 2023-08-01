@@ -1,117 +1,69 @@
-    def setUp(self):
-        # Alice
-        self.alice_wallet = BtcTxStore(testnet=False, dryrun=True)
-        self.alice_wif = "L18vBLrz3A5QxJ6K4bUraQQZm6BAdjuAxU83e16y3x7eiiHTApHj"
-        self.alice_node_id = address_to_node_id(
-            self.alice_wallet.get_address(self.alice_wif)
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+
+def generate_rsa_keypair():
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    public_key = private_key.public_key()
+
+    return private_key, public_key
+
+def encrypt_with_fernet(file_contents, aes_key):
+    fernet = Fernet(aes_key)
+    encrypted_file = fernet.encrypt(file_contents)
+    return encrypted_file
+
+def encrypt_with_rsa(public_key, aes_key):
+    encrypted_aes_key = public_key.encrypt(
+        aes_key,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
         )
-        self.alice_dht_node = pyp2p.dht_msg.DHT(
-            node_id=self.alice_node_id,
-            networking=0
+    )
+    return encrypted_aes_key
+
+def decrypt_with_rsa(private_key, encrypted_aes_key):
+    decrypted_aes_key = private_key.decrypt(
+        encrypted_aes_key,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
         )
-        self.alice_storage = tempfile.mkdtemp()
-        self.alice = FileTransfer(
-            pyp2p.net.Net(
-                net_type="direct",
-                node_type="passive",
-                nat_type="preserving",
-                passive_port=0,
-                dht_node=self.alice_dht_node,
-                wan_ip="8.8.8.8",
-                debug=1
-            ),
-            BandwidthLimit(),
-            wif=self.alice_wif,
-            store_config={self.alice_storage: None}
-        )
+    )
+    return decrypted_aes_key
 
-        # Bob
-        self.bob_wallet = BtcTxStore(testnet=False, dryrun=True)
-        self.bob_wif = "L3DBWWbuL3da2x7qAmVwBpiYKjhorJuAGobecCYQMCV7tZMAnDsr"
-        self.bob_node_id = address_to_node_id(
-            self.bob_wallet.get_address(self.bob_wif))
-        self.bob_dht_node = pyp2p.dht_msg.DHT(
-            node_id=self.bob_node_id,
-            networking=0
-        )
-        self.bob_storage = tempfile.mkdtemp()
-        self.bob = FileTransfer(
-            pyp2p.net.Net(
-                net_type="direct",
-                node_type="passive",
-                nat_type="preserving",
-                passive_port=0,
-                dht_node=self.bob_dht_node,
-                wan_ip="8.8.8.8",
-                debug=1
-            ),
-            BandwidthLimit(),
-            wif=self.bob_wif,
-            store_config={self.bob_storage: None}
-        )
+if __name__ == "__main__":
+    # Generate RSA key pair
+    private_key, public_key = generate_rsa_keypair()
 
-        # Accept all transfers.
-        def accept_handler(contract_id, src_unl, data_id, file_size):
-            return 1
+    # Example file content to encrypt
+    file_contents = b"Hello, this is a secret message!"
 
-        # Add accept handler.
-        self.alice.handlers["accept"].add(accept_handler)
-        self.bob.handlers["accept"].add(accept_handler)
+    # Generate an AES key (this should be a securely generated key in practice)
+    aes_key = Fernet.generate_key()
 
-        # Link DHT nodes.
-        self.alice_dht_node.add_relay_link(self.bob_dht_node)
-        self.bob_dht_node.add_relay_link(self.alice_dht_node)
+    # Encrypt the file content using Fernet encryption
+    encrypted_file = encrypt_with_fernet(file_contents, aes_key)
+    print("Encrypted File:", encrypted_file)
 
-        # Bypass sending messages for client.
-        def send_msg(dict_obj, unl):
-            print("Skipped sending message in test")
-            print(dict_obj)
-            print(unl)
+    # Encrypt AES key with RSA public key
+    encrypted_aes_key = encrypt_with_rsa(public_key, aes_key)
+    print("Encrypted AES Key:", encrypted_aes_key)
 
-        # Install send msg hooks.
-        self.alice.send_msg = send_msg
-        self.bob.send_msg = send_msg
+    # Demonstrate decryption of the AES key using the RSA private key
+    decrypted_aes_key = decrypt_with_rsa(private_key, encrypted_aes_key)
+    print("Decrypted AES Key:", decrypted_aes_key)
 
-        # Bypass sending relay messages for clients.
-        def relay_msg(node_id, msg):
-            print("Skipping relay message in test")
-            print(node_id)
-            print(msg)
-
-        # Install relay msg hooks.
-        if self.alice.net.dht_node is not None:
-            self.alice.net.dht_node.relay_message = relay_msg
-
-        if self.bob.net.dht_node is not None:
-            self.bob.net.dht_node.relay_message = relay_msg
-
-        # Bypass UNL.connect for clients.
-        def unl_connect(their_unl, events, force_master=1, hairpin=1,
-                        nonce="0" * 64):
-            print("Skipping UNL.connect!")
-            print("Their unl = ")
-            print(their_unl)
-            print("Events = ")
-            print(events)
-            print("Force master = ")
-            print(force_master)
-            print("Hairpin = ")
-            print(hairpin)
-            print("Nonce = ")
-            print(nonce)
-
-        # Install UNL connect hooks.
-        self.alice.net.unl.connect = unl_connect
-        self.bob.net.unl.connect = unl_connect
-
-        # Record syn.
-        data_id = u"5feceb66ffc86f38d952786c6d696c79"
-        data_id += u"c2dbc239dd4e91b46729d73a27fb57e9"
-        self.syn = OrderedDict([
-            (u"status", u"SYN"),
-            (u"data_id", data_id),
-            (u"file_size", 100),
-            (u"host_unl", self.alice.net.unl.value),
-            (u"dest_unl", self.bob.net.unl.value),
-            (u"src_unl", self.alice.net.unl.value)
-        ])
+    # Decrypt the encrypted file using the decrypted AES key
+    fernet = Fernet(decrypted_aes_key)
+    decrypted_file = fernet.decrypt(encrypted_file)
+    print("Decrypted File:", decrypted_file)
