@@ -31,7 +31,7 @@ if __name__ == '__main__':
     client_port_next = random.randint(50000, 60000)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict = OrderedDict()
-    worker_id = 1
+    worker_id = 2
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -62,6 +62,8 @@ if __name__ == '__main__':
         print("received_headid : ", received_headid)
 
         weights = worker.train(round=1)
+        accuracy=worker.test()
+        print("Training accuracy",accuracy)
 
         worker_index = received_headid['workerid']
 
@@ -179,12 +181,7 @@ if __name__ == '__main__':
                 get_hash = worker.receive_data(client_socket_peer)
                 print("Got ipfs Hash", get_hash["Hash"])
 
-
-
                 model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
-
-
-
                 average_Weight = torch.load(model_filename)
 
                 worker.update_model(average_Weight)

@@ -33,7 +33,7 @@ class Model():
     epochs = 1
 
     def __init__(self,  model, optimizer, device, topk, isEvil = False):
-        self.num_workers = 1
+        self.num_workers = 3
         self.idx = 1
         self.model = model
         self.optimizer = optimizer
@@ -113,6 +113,7 @@ class Model():
         self.model.eval()
         test_loss = 0
         correct = 0
+
         with torch.no_grad():
             for idx, (data, target) in enumerate(self.test_loader):
                 if idx >= self.start_idx_test and idx < self.start_idx_test + self.num_test_batches:
@@ -120,12 +121,14 @@ class Model():
                     test_loss += F.nll_loss(output.to(self.DEVICE), target.to(self.DEVICE)).item()
                     pred = output.data.max(1, keepdim=True)[1]
                     correct += pred.eq(target.data.to(self.DEVICE).view_as(pred)).sum()
-            test_loss /= (self.num_test_batches * self.batch_size)
-        print('\nTest set: , Accuracy: {}/{} ({:.0f}%)\n'.format(
-          correct, self.num_test_batches * self.batch_size,
-          100. * correct / (self.num_test_batches * self.batch_size)))
+
+        test_loss /= (self.num_test_batches * self.batch_size)
+        accuracy = 100. * correct / (self.num_test_batches * self.batch_size)
+
+        print('\nTest set: Accuracy: {}/{} ({:.0f}%), Loss: {:.6f}\n'.format(
+            correct, self.num_test_batches * self.batch_size, accuracy, test_loss))
         
-        return correct / (self.num_test_batches*self.batch_size)
+        return accuracy, test_loss
     
     def eval(self, model_state_dicts):
         res = []
@@ -259,9 +262,9 @@ class Worker:
         # print("Training state: ", cur_state_dict)
         return cur_state_dict
     
-    # def test(self):
+    def test(self):
 
-    #     return self.model.test()
+        return self.model.test()
 
 
     def send_data(self,socket, data):

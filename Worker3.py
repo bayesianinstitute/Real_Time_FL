@@ -63,6 +63,10 @@ if __name__ == '__main__':
 
         weights = worker.train(round=1)
 
+        accuracy,loss=worker.test()
+        print('\nResult set: Accuracy:  ({:.0f}%), Loss: {:.6f}\n'.format(accuracy, loss))
+
+
         worker_index = received_headid['workerid']
 
         is_header = True
