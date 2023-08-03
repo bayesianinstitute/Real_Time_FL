@@ -31,7 +31,7 @@ if __name__ == '__main__':
     client_port_next = random.randint(50000, 60000)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict = OrderedDict()
-    worker_id = 2
+    worker_id = 1
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -46,24 +46,44 @@ if __name__ == '__main__':
     worker = Worker(ipfs_path, device, is_evil, topk,worker_id)
     worker.send_data(client_socket, client_port_next)
 
+
+    # receive contract Address
+    contract_address=worker.receive_data(client_socket)
+
+    print("Contract address : ", contract_address)
+
+    worker.join_task(contract_address)
+
+    # sending Worker Blockchain Address
+
+    w_addr=worker.workerAddress()
+
+    worker.send_data(client_socket, w_addr)    
+
+
+    # Receive Json for Header
     received_json = worker.receive_data(client_socket)
     print("received_json : ", received_json)
     received_headid = worker.receive_data(client_socket)
     print("received_headid : ", received_headid)
 
     while True:
-        contract_address = '0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
         workerAddress = worker.workerAddress()
-
-        client_socket.close()
-        print("Connection close from Application")
 
         print("Training Model")
         print("received_headid : ", received_headid)
 
         weights = worker.train(round=1)
-        accuracy=worker.test()
-        print("Training accuracy",accuracy)
+
+        accuracy,loss=worker.test()
+        print('\nResult set: Accuracy:  ({:.0f}%), Loss: {:.6f}\n'.format(accuracy, loss))
+
+        unsorted_scores =worker.evaluate(weights,worker_id)
+
+        worker.send_data(client_socket, unsorted_scores)
+        print("Send unscored scores")
+
+
 
         worker_index = received_headid['workerid']
 
@@ -181,7 +201,12 @@ if __name__ == '__main__':
                 get_hash = worker.receive_data(client_socket_peer)
                 print("Got ipfs Hash", get_hash["Hash"])
 
+
+
                 model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
+
+
+
                 average_Weight = torch.load(model_filename)
 
                 worker.update_model(average_Weight)
@@ -200,3 +225,6 @@ if __name__ == '__main__':
 
             except Exception as e:
                 print("Error during peer connection:", e)
+    else :
+        client_socket.close()
+        print("Connection closed")

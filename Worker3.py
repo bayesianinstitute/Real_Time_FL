@@ -46,17 +46,31 @@ if __name__ == '__main__':
     worker = Worker(ipfs_path, device, is_evil, topk,worker_id)
     worker.send_data(client_socket, client_port_next)
 
+
+    # receive contract Address
+    contract_address=worker.receive_data(client_socket)
+
+    print("Contract address : ", contract_address)
+
+    worker.join_task(contract_address)
+
+    # sending Worker Blockchain Address
+
+    w_addr=worker.workerAddress()
+
+
+    worker.send_data(client_socket, w_addr)    
+    print("sent Address : ",w_addr)
+
+
+    # Receive Json for Header
     received_json = worker.receive_data(client_socket)
     print("received_json : ", received_json)
     received_headid = worker.receive_data(client_socket)
     print("received_headid : ", received_headid)
 
     while True:
-        contract_address = '0xdD0751275E7e9fE7c35798Ca124F970F5755Fb26'
         workerAddress = worker.workerAddress()
-
-        client_socket.close()
-        print("Connection close from Application")
 
         print("Training Model")
         print("received_headid : ", received_headid)
@@ -65,6 +79,12 @@ if __name__ == '__main__':
 
         accuracy,loss=worker.test()
         print('\nResult set: Accuracy:  ({:.0f}%), Loss: {:.6f}\n'.format(accuracy, loss))
+
+        unsorted_scores =worker.evaluate(weights,worker_id)
+
+        worker.send_data(client_socket, unsorted_scores)
+        print("Send unscored scores")
+
 
 
         worker_index = received_headid['workerid']
@@ -207,3 +227,6 @@ if __name__ == '__main__':
 
             except Exception as e:
                 print("Error during peer connection:", e)
+    else :
+        client_socket.close()
+        print("Connection closed")

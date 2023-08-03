@@ -18,6 +18,7 @@ class Requester:
         self.account = self.w3.eth.account.privateKeyToAccount(key)
         self.contract = self.w3.eth.contract(bytecode=self.truffle_file['bytecode'], abi=self.truffle_file['abi'])
 
+
     def deploy_contract(self):
 
         construct_txn = self.contract.constructor().buildTransaction({
@@ -73,7 +74,7 @@ class Requester:
 
         self.num_workers = self.contract_instance.functions.getNumWorkers().call() 
         self.init_score_matrix()
-        
+
     
     def next_round(self):
         self.contract_instance = self.w3.eth.contract(abi=self.truffle_file['abi'], address=self.contract_address)
@@ -91,13 +92,17 @@ class Requester:
         
         self.init_score_matrix()
     
-    def push_scores(self, index_score_tuple):
+    def push_scores(self, index_score_tuple,num_workers):
+        # self.score_matrix = []
+        self.score_matrix = np.empty((num_workers, num_workers))
+
         print("Length of score index_tuple",len(index_score_tuple))
         print("index_score ",index_score_tuple[0])
         print("index_score ",index_score_tuple[1])
         index = index_score_tuple[0]
         scores=index_score_tuple[1]
         self.score_matrix[index] = np.array(scores)
+        print("Score matrix",self.score_matrix)
       
 
     def get_score_matrix(self):
@@ -106,46 +111,47 @@ class Requester:
     # calculate the top K of the round using the contribution scoring procedure from blockflow
     # inputs: score matrix dimension n x n where n = num_workers, number of workers
     # output: round top k with index of best performing workers
+
     def calc_overall_scores(self, score_matrix, num_workers):
-        m = [] # median scores of each worker (m_k)
-        m_scaled = [] # scaled median scores of each worker (m_k)
-        t = np.full((num_workers, num_workers), -1.0) # evaluation quality scores
-        t_scaled = np.full((num_workers, num_workers), -1.0) # transformed evaluation quality scores
-        d = [] # least accurate evaluation each client performed
-        overall_scores = [] # overall scores
+        m = []  # median scores of each worker (m_k)
+        m_scaled = []  # scaled median scores of each worker (m_k)
+        t = np.full((num_workers, num_workers), -1.0)  # evaluation quality scores
+        t_scaled = np.full((num_workers, num_workers), -1.0)  # transformed evaluation quality scores
+        d = []  # least accurate evaluation each client performed
+        overall_scores = []  # overall scores
 
         scores = np.array(score_matrix)
-        print("scores",scores)
 
-        #calculate median scores of each worker
+        # calculate median scores of each worker
         for i in range(num_workers):
             worker_scores = scores[:, i]
             scores_without_self = np.delete(worker_scores, i)
             m.append(np.median(scores_without_self))
 
-        max_median = np.array(m).max() # maximum median score
+        max_median = np.array(m).max()  # maximum median score
 
         # scale median scores to ensure a maximum of 1.0
         for i in range(num_workers):
-            m_scaled.append(m[i]/max_median)
+            m_scaled.append(m[i] / max_median)
 
         for i in range(num_workers):
             for j in range(num_workers):
                 if i != j:
-                    t[i, j] = abs(scores[i, j] - m[j]) # compute evaluation quality scores
-                    t_scaled[i, j] = max(0, (0.5-t[i, j])/(0.5+t[i, j])) # transform evaluation quality scores
-        
+                    t[i, j] = abs(scores[i, j] - m[j])  # compute evaluation quality scores
+                    t_scaled[i, j] = 1.0 - t[i, j]  # transform evaluation quality scores
+
         for i in range(num_workers):
             quality_scores = t_scaled[i]
             quality_scores_without_self = np.delete(quality_scores, i)
-            d.append(np.array(quality_scores_without_self).min()) # compute least accurate evaluation for each client
+            d.append(np.array(quality_scores_without_self).min())  # compute least accurate evaluation for each client
 
-        max_d = np.array(d).max() # maximum value of least accurate evaluations used for scaling
+        max_d = np.array(d).max()  # maximum value of least accurate evaluations used for scaling
 
         for i in range(num_workers):
-            overall_scores.append(min(m_scaled[i], (d[i]/max_d))) # compute overall score as the minimum between m_scaled and d_scaled
-        print(overall_scores)
+            overall_scores.append(min(m_scaled[i], (d[i] / max_d)))  # compute overall score as the minimum between m_scaled and d_scaled
+
         return overall_scores
+
 
     # given the array of addresses and their respective overall score, returns the ordered top k addresses
     # note: k = num_workers in this first implementation, in future work add option to edit top k length 

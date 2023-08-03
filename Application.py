@@ -36,6 +36,7 @@ class Application:
         self.num_evil = num_evil
         self.ffi = None  # Add the FFI attribute and set it to None
         self.contract_address = None
+        self.worker_address = {}
 
         
  
@@ -122,6 +123,7 @@ class Application:
         print("Contract Address:", contract_address)
         self.requester.init_task(10000000000000000000, self.fspath, self.num_rounds)
         print("Task initialized")
+
         # Create a socket
 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -157,10 +159,22 @@ class Application:
         print("Received all client connections")
 
 
-            
+        try:
+                for idx,client_socket in enumerate(client_sockets):
+                    print("Sending Contract Address to client:",idx+1)
+                    self.send_data(client_socket, contract_address)
+
+        except ConnectionResetError:
+                # Handle the case when a client disconnects unexpectedly
+                print("Client", idx + 1, "disconnected.")
+                client_sockets.pop(idx)
+
+
+
+        new_port=[]
 
         self.requester.start_task()
-        new_port=[]
+
         
 
         for idx, client_socket in enumerate(client_sockets):
@@ -170,19 +184,19 @@ class Application:
             # Update the 'port' value in the client_info dictionary
             worker_info_list[idx]['new_port'] = port
 
+        
+        # Storing worker blockchan Address
+        for idx, client_socket in enumerate(client_sockets):
+            worder_addr = self.receive_data(client_socket)
+            self.worker_address[idx] = worder_addr
+
+
+        print("Worker Address",self.worker_address)
+
         # Save the updated worker information with new ports to the JSON file
         self.save_worker_data_to_json(worker_info_list)
         print("Worker information with new ports saved")
 
-            # # You can also add any additional information about the worker here if needed
-            # client_info = {
-            #     'address': addr[0],
-            #     'port': addr[1],
-            #     'workerid': i+1,
-            #     'new_port':port,
-            # }
-
-            # worker_info_list.append(client_info)
 
         # Save the worker information to JSON file
         self.save_worker_data_to_json(worker_info_list)
@@ -207,9 +221,9 @@ class Application:
                     self.send_data(client_socket, file_json)
                     self.send_data(client_socket,worker_head_id)
                  # Receive acknowledgment from each client after sending the data
-                for idx, client_socket in enumerate(client_sockets):
-                    acknowledgment = self.receive_data(client_socket)
-                    print("Received Json File from client", idx + 1)
+                # for idx, client_socket in enumerate(client_sockets):
+                #     acknowledgment = self.receive_data(client_socket)
+                #     print("Received Json File from client", idx + 1)
 
             except ConnectionResetError:
                 # Handle the case when a client disconnects unexpectedly
@@ -223,70 +237,31 @@ class Application:
                 print("Error sending data",e)
 
             
-            
-
-
-
-
             # Receive serialized data f1rom each client
             worker_weights = []
             for idx, client_socket in enumerate(client_sockets):
-                work_address = self.receive_data(client_socket)
-                # print("Serialized data from client", idx + 1, ":", work_address)
-
-                worker_weights.append(work_address)
-
-            # Assuming you want to store the worker addresses in the worker_dict
+                unsorted_scores = self.receive_data(client_socket)
+                unsorted_scores = [score[0][0].cpu().item() for score in unsorted_scores]
+                
+                # Ensure there is one score per worker (num_workers)
+                while len(unsorted_scores) < self.num_workers:
+                    unsorted_scores.append(-1)
+                
+                unsorted_scores = (idx, unsorted_scores)
+                self.requester.push_scores(unsorted_scores, self.num_workers)
+                print("score sent by idx:", idx)
         
 
 
-            for idx, weight in enumerate(worker_weights):
-                # The key will be in the format 'worker_1_weights', 'worker_2_weights', and so on
-                key = f'worker_{idx + 1}_weights'
-                # Add the weight to the OrderedDict with the corresponding key
-                self.worker_dict[key] = weight
-
-                
-
+            overall_scores = self.requester.calc_overall_scores(
+                self.requester.get_score_matrix(), self.num_workers)
             
-            # Choose a random worker and send its data to all clients
-            # random_worker_data = self.choose_random_worker()
-            # self.send_worker_data_to_clients(random_worker_data)
-
-
-            print("Server is listening on {}:{}".format(HOST, PORT))
-
-            # print("Account Weights:", self.worker_dict['worker_1_weights'])
-
-
-
-
-
-            averaged_weights=self.average(self.worker_dict)
-
-            print("Averaged weights are Done")
-
-            try:
-                for idx,client_socket in enumerate(client_sockets):
-                    print("Sending weight to client:",idx+1)
-                    self.send_data(client_socket, averaged_weights)
-                    print("Sent new weights to clients",idx+1)
-                 # Receive acknowledgment from each client after sending the data
-                for idx, client_socket in enumerate(client_sockets):
-                    acknowledgment = self.receive_data(client_socket)
-                    print("Received acknowledgment from client", idx + 1)
-
-            except ConnectionResetError:
-                # Handle the case when a client disconnects unexpectedly
-                print("Client", idx + 1, "disconnected.")
-                client_sockets.pop(idx)
-
-
-
-
-            except Exception as e:
-                print("Error sending data",e)
-
+            print("get score matrix:", self.requester.get_score_matrix())
+            round_top_k = self.requester.compute_top_k(
+                list(self.worker_address.values()), overall_scores)
+            self.requester.submit_top_k(round_top_k)
+            self.requester.distribute_rewards()
+            print("Distributed rewards. Next round starting soon...")
             
 
         

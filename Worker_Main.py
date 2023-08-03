@@ -23,6 +23,9 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.backends import default_backend
 
+from dotenv import load_dotenv
+
+
 
 class Model():
     '''
@@ -130,16 +133,19 @@ class Model():
         
         return accuracy, test_loss
     
-    def eval(self, model_state_dicts):
+    def eval(self, model_state_dicts,id):
         res = []
         for idx, m in enumerate(model_state_dicts):
-            self.model.load_state_dict(m)
-            acc = self.test()
-            res.append((acc,idx,m))
+            pass
+            # self.model.load_state_dict(m)
+        print("idx : ", id)
+        acc = self.test()
+        res.append((acc,id,m))
             
-            
+        print('length {}  of  res :{} '.format(len(res),res))
         sorted_models = sorted(res, key=lambda t: t[0])
-        return self.rank_models(sorted_models),  self.get_top_k(sorted_models), res
+        # return self.rank_models(sorted_models),  self.get_top_k(sorted_models), res
+        return res
             
             
             
@@ -152,6 +158,8 @@ class Worker:
     def __init__(self, ipfs_path, device, is_evil, topk,worker_id):
         # self.bcc = BCCommunicator()
         # self.fsc = FSCommunicator(ipfs_path, device)
+        load_dotenv()
+
 
 
                         # Generate RSA key pair
@@ -171,10 +179,11 @@ class Worker:
         # Generate AES key
         self.aes_key = Fernet.generate_key()
         print("ase", self.aes_key)
+        
 
         # Create Fernet object with AES key
         self.fernet = Fernet(self.aes_key)
-
+        print("Workerid",worker_id)
         self.key = os.getenv(f'WORKER{worker_id}_KEY')
         self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
 
@@ -207,48 +216,34 @@ class Worker:
         self.model = Model(model, opt, device, topk)
 
         self.num_workers = 0
+        print("key", self.key)
 
-        key = '0x36b2bb51e03ff1a6e27ff7f9054fbcce5d20d41813838028973a4ae3759a0026'
+        key = 9
         self.w3 = Web3(HTTPProvider("http://localhost:7545"))
         if self.w3.isConnected():
             print("Worker initialization: connected to blockchain")
 
-        self.account = self.w3.eth.account.privateKeyToAccount(key)
+        self.account = self.w3.eth.account.privateKeyToAccount(self.key)
         self.contract = self.w3.eth.contract(
             bytecode=self.truffle_file['bytecode'], abi=self.truffle_file['abi'])
 
 
 
  
-    def join_task(self):
-        contract_address = '0xA2a3E91f54f60b62EF72BAa3b03d20E23F46Dee2'  # Double-check this address
-        self.contract_instance = self.w3.eth.contract(
-            abi=self.truffle_file['abi'], address=contract_address)
+    def join_task(self, contract_address):
+        self.contract_address = contract_address
+        self.contract_instance = self.w3.eth.contract(abi=self.truffle_file['abi'], address=contract_address)
 
-
-        # print("contract_instace",self.contract_instance)
-        # Call the 'joinTask' function
-        try:
-            tx = self.contract_instance.functions.joinTask().buildTransaction({
-                "gasPrice": self.w3.eth.gas_price,
-                "chainId": 1337,
-                "from": self.account.address,
-                "nonce": self.w3.eth.getTransactionCount(self.account.address)
-            })
-            signed_tx = self.w3.eth.account.signTransaction(tx, self.key)
-            tx_hash = self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-
-            # Wait for the transaction to be mined and get the receipt
-            tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
-
-            # Check if the transaction was successful
-            if tx_receipt['status'] == 1:
-                print("Transaction successful!")
-            else:
-                print("Transaction failed!")
-
-        except Exception as e:
-            print("Error while executing the transaction:", e)
+        tx = self.contract_instance.functions.joinTask().buildTransaction({
+            "gasPrice": self.w3.eth.gas_price, 
+            "chainId": 1337, 
+            "from": self.account.address, 
+            'nonce': self.w3.eth.getTransactionCount(self.account.address)
+        })
+        #Get tx receipt to get contract address
+        signed_tx = self.w3.eth.account.signTransaction(tx, self.key)
+        tx_hash = self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+        tx_receipt = self.w3.eth.getTransactionReceipt(tx_hash)
 
 
     def workerAddress(self):
@@ -294,12 +289,13 @@ class Worker:
         return data
     
 
-    def evaluate(self, weights):
+    def evaluate(self, weights,w_id):
         print("Evaluating")
         state_dicts = weights
-        ranks, topk_dicts, unsorted_scores = self.model.eval(state_dicts)
+        unsorted_scores = self.model.eval(state_dicts,w_id)
         # topk_dicts.append(self.model.model.state_dict())
         # return self.model.average(topk_dicts), topk_dicts, unsorted_scores
+        return unsorted_scores
 
     def update_model(self, avg_dicts):
         self.model.adapt_current_model(avg_dicts)
