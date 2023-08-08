@@ -16,8 +16,8 @@ import random
 
 from collections import OrderedDict
 
-HOST = 'localhost'
-PORT = 12347
+from config_app import HOST,PORT
+
 
 # Main class to simulate the distributed application
 class Application:
@@ -79,12 +79,21 @@ class Application:
 
     def save_worker_data_to_json(self, worker_data):
         # Save the worker data dictionary to JSON file
-        with open('worker_data.json', 'w') as file:
-            json.dump(worker_data, file)
+        worker_data_1=worker_data[:3]
+        worker_data_2=worker_data[3:]
 
-    def load_worker_data_from_json(self):
+        # Save Cluster 1 data to JSON file
+        with open('C1_worker_data.json', 'w') as file:
+            json.dump(worker_data_1, file)
+
+        # Save Cluster 2 data to JSON file
+        
+        with open('C2_worker_data.json', 'w') as file:
+            json.dump(worker_data_2, file)
+
+    def load_worker_data_from_json(self,files):
         # Load the worker data from JSON file
-        with open('worker_data.json', 'r') as file:
+        with open(files, 'r') as file:
             worker_data = json.load(file)
         return worker_data
     
@@ -128,7 +137,7 @@ class Application:
 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((HOST, PORT))
-        server_socket.listen(3)  # Allow two client connections
+        server_socket.listen(6)  # Allow Six client connections
         print("Waiting for connections from clients...")
 
         # Accept connections from two clients
@@ -136,7 +145,7 @@ class Application:
         client_sockets = []
         worker_info_list = []
         # Accept connections from worker clients and store their socket information
-        for i in range(3):
+        for i in range(6):
             client_socket, addr = server_socket.accept()
             print("Connection from:", addr)
             client_sockets.append(client_socket)
@@ -205,25 +214,32 @@ class Application:
 
         while True :
 
-            file_json=self.load_worker_data_from_json()
+            # file_json=self.load_worker_data_from_json()
 
-            file_name='worker_data.json'
+            file_name_1='C1_worker_data.json'
+            file_name_2='C2_worker_data.json'
 
-            worker_head_ids = self.load_worker_head_ids(file_name)
-            worker_head_id = self.shuffle_worker_head(worker_head_ids)
+            file_json_1=self.load_worker_data_from_json(file_name_1)
+            file_json_2=self.load_worker_data_from_json(file_name_2)
 
 
-            print("suffle_id id ",worker_head_id)
+
+
+            worker_head_ids_1 = self.load_worker_head_ids(file_name_1)
+            worker_head_id_1 = self.shuffle_worker_head(worker_head_ids_1)
+
+            worker_head_ids_2 = self.load_worker_head_ids(file_name_2)
+            worker_head_id_2 = self.shuffle_worker_head(worker_head_ids_2)
+
+
+            print("suffle_id id ",worker_head_id_1)
 
             try:
-                for idx,client_socket in enumerate(client_sockets):
-                    print("Sending json file to client:",idx+1)
-                    self.send_data(client_socket, file_json)
-                    self.send_data(client_socket,worker_head_id)
-                 # Receive acknowledgment from each client after sending the data
-                # for idx, client_socket in enumerate(client_sockets):
-                #     acknowledgment = self.receive_data(client_socket)
-                #     print("Received Json File from client", idx + 1)
+                for idx,client_socket in enumerate(client_sockets[:3]):
+                    print("Sending json file to client for Cluster 1:",idx+1)
+                    self.send_data(client_socket, file_json_1)
+                    self.send_data(client_socket,worker_head_id_1)
+
 
             except ConnectionResetError:
                 # Handle the case when a client disconnects unexpectedly
@@ -236,10 +252,30 @@ class Application:
             except Exception as e:
                 print("Error sending data",e)
 
+            try:
+                for idx,client_socket in enumerate(client_sockets[3:]):
+                    print("Sending json file to client for Cluster 2:",idx+1)
+                    self.send_data(client_socket, file_json_2)
+                    self.send_data(client_socket,worker_head_id_2)
+
+
+            except ConnectionResetError:
+                # Handle the case when a client disconnects unexpectedly
+                print("Client", idx + 1, "disconnected.")
+                client_sockets.pop(idx)
+
+
+
+
+            except Exception as e:
+                print("Error sending data",e)
+
+            print("Send file to all clusters")
+
             
             # Receive serialized data f1rom each client
             worker_weights = []
-            for idx, client_socket in enumerate(client_sockets):
+            for idx, client_socket in enumerate(client_sockets[:3]):
                 unsorted_scores = self.receive_data(client_socket)
                 unsorted_scores = [score[0][0].cpu().item() for score in unsorted_scores]
                 
@@ -258,14 +294,62 @@ class Application:
             
             print("get score matrix:", self.requester.get_score_matrix())
             round_top_k = self.requester.compute_top_k(
-                list(self.worker_address.values()), overall_scores)
-            self.requester.submit_top_k(round_top_k)
-            self.requester.distribute_rewards()
-            print("Distributed rewards. Next round starting soon...")
+                list(self.worker_address.values())[:3], overall_scores)
             
+            penalize = self.requester.find_bad_workers(
+                list(self.worker_address.values())[:3], overall_scores)
+            print("penalize :", penalize)
+            self.requester.penalize_worker(penalize)
+            self.requester.refund_worker(list(self.worker_address.values())[:3])
 
+            
+            
+            self.requester.submit_top_k(round_top_k)
+            
+            self.requester.distribute_rewards()
+            print("Distributed rewards for Cluster 1. ")
+
+            for idx, client_socket in enumerate(client_sockets[3:]):
+                unsorted_scores = self.receive_data(client_socket)
+                unsorted_scores = [score[0][0].cpu().item() for score in unsorted_scores]
+                
+                # Ensure there is one score per worker (num_workers)
+                while len(unsorted_scores) < self.num_workers:
+                    unsorted_scores.append(-1)
+                
+                unsorted_scores = (idx, unsorted_scores)
+                self.requester.push_scores(unsorted_scores, self.num_workers)
+                print("score sent by idx:", idx)
         
-        print("Connection Closed")
-        server_socket.close()
+
+
+            overall_scores = self.requester.calc_overall_scores(
+                self.requester.get_score_matrix(), self.num_workers)
+            
+            print("get score matrix:", self.requester.get_score_matrix())
+            round_top_k = self.requester.compute_top_k(
+                list(self.worker_address.values())[3:], overall_scores)
+            
+            penalize = self.requester.find_bad_workers(
+                list(self.worker_address.values())[3:], overall_scores)
+            print("penalize :", penalize)
+            self.requester.penalize_worker(penalize)
+            self.requester.refund_worker(list(self.worker_address.values())[3:])
+
+            
+            
+            self.requester.submit_top_k(round_top_k)
+            
+            self.requester.distribute_rewards()
+            print("Distributed rewards for Cluster 2. Next round starting soon...")
+
+            # self.requester.next_round()
+                   
+            print("Connection Closed")
+            server_socket.close()
+            return 0
+
+
+ 
 
 

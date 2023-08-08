@@ -19,14 +19,15 @@ from collections import OrderedDict
 import random
 import time
 from Worker_Main import Worker
+from config_app import HOST,PORT
+
 
 if __name__ == '__main__':
     ipfs_path = 'QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     is_evil = False
     topk = 1
-    HOST = 'localhost'
-    PORT = 12347
+
     client_port = random.randint(40000, 50000)
     client_port_next = random.randint(50000, 60000)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -52,6 +53,7 @@ if __name__ == '__main__':
 
     print("Contract address : ", contract_address)
 
+    time.sleep(3)
     worker.join_task(contract_address)
 
     # sending Worker Blockchain Address

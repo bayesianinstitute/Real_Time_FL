@@ -218,32 +218,31 @@ class Worker:
         self.num_workers = 0
         print("key", self.key)
 
-        key = 9
+        key = self.key
         self.w3 = Web3(HTTPProvider("http://localhost:7545"))
         if self.w3.isConnected():
             print("Worker initialization: connected to blockchain")
 
-        self.account = self.w3.eth.account.privateKeyToAccount(self.key)
-        self.contract = self.w3.eth.contract(
-            bytecode=self.truffle_file['bytecode'], abi=self.truffle_file['abi'])
+        self.account = self.w3.eth.account.privateKeyToAccount(key)
+        self.contract = self.w3.eth.contract(bytecode=self.truffle_file['bytecode'], abi=self.truffle_file['abi'])
 
-
-
- 
     def join_task(self, contract_address):
         self.contract_address = contract_address
         self.contract_instance = self.w3.eth.contract(abi=self.truffle_file['abi'], address=contract_address)
-
+        deposit = 5000000000000000000  # 5 ethers (in wei)
         tx = self.contract_instance.functions.joinTask().buildTransaction({
-            "gasPrice": self.w3.eth.gas_price, 
-            "chainId": 1337, 
-            "from": self.account.address, 
+            "gasPrice": self.w3.eth.gas_price,
+            "chainId": 1337,
+            "from": self.account.address,
+            "value": deposit,
             'nonce': self.w3.eth.getTransactionCount(self.account.address)
         })
-        #Get tx receipt to get contract address
+        # Get tx receipt to get contract address
         signed_tx = self.w3.eth.account.signTransaction(tx, self.key)
         tx_hash = self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
         tx_receipt = self.w3.eth.getTransactionReceipt(tx_hash)
+        
+ 
 
 
     def workerAddress(self):

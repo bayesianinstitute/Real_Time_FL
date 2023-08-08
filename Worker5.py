@@ -19,19 +19,21 @@ from collections import OrderedDict
 import random
 import time
 from Worker_Main import Worker
+
 from config_app import HOST,PORT
 
 
 if __name__ == '__main__':
     ipfs_path = 'QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    is_evil = True
+    is_evil = False
     topk = 1
+
     client_port = random.randint(40000, 50000)
     client_port_next = random.randint(50000, 60000)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict = OrderedDict()
-    worker_id = 1
+    worker_id = 5
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
