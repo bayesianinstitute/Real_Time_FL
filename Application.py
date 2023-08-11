@@ -79,15 +79,20 @@ class Application:
 
     def save_worker_data_to_json(self, worker_data):
         # Save the worker data dictionary to JSON file
-        worker_data_1=worker_data[:3]
-        worker_data_2=worker_data[3:]
+        worker_data_1 = []
+        worker_data_2 = []
+
+        for data in worker_data:
+            if data['location'] == 'INDIA':
+                worker_data_1.append(data)
+            elif data['location'] == 'USA':
+                worker_data_2.append(data)
 
         # Save Cluster 1 data to JSON file
         with open('C1_worker_data.json', 'w') as file:
             json.dump(worker_data_1, file)
 
         # Save Cluster 2 data to JSON file
-        
         with open('C2_worker_data.json', 'w') as file:
             json.dump(worker_data_2, file)
 
@@ -155,14 +160,13 @@ class Application:
                 'address': addr[0],
                 'port': addr[1],
                 'workerid': i+1,
-
                 
             }
             worker_info_list.append(client_info)
 
         # Save the worker information to JSON file
-        self.save_worker_data_to_json(worker_info_list)
-        print("Worker information saved")
+        # self.save_worker_data_to_json(worker_info_list)
+        # print("Worker information saved")
 
         
         print("Received all client connections")
@@ -184,15 +188,25 @@ class Application:
 
         self.requester.start_task()
 
+        print("Requester Start Task")
+
         
-
+        # Receive Meta Data
         for idx, client_socket in enumerate(client_sockets):
-            port = self.receive_data(client_socket)
-            print("Port", port)
-            new_port.append(port)
-            # Update the 'port' value in the client_info dictionary
-            worker_info_list[idx]['new_port'] = port
+            meta = self.receive_data(client_socket)
+            print(f"{idx+1} meta data : {meta}" )
 
+
+            port=meta['port'] 
+            locations=meta['locations'] 
+            cluster_head=meta['cluster_head_port']
+            # print("Port", port)
+            # print("Location", locations)
+            new_port.append(port)
+            # Update the 'port,location and cluster_head_port' value in the client_info dictionary
+            worker_info_list[idx]['new_port'] = port
+            worker_info_list[idx]['location'] = locations
+            worker_info_list[idx]['cluster_head_port']=cluster_head
         
         # Storing worker blockchan Address
         for idx, client_socket in enumerate(client_sockets):
@@ -205,11 +219,6 @@ class Application:
         # Save the updated worker information with new ports to the JSON file
         self.save_worker_data_to_json(worker_info_list)
         print("Worker information with new ports saved")
-
-
-        # Save the worker information to JSON file
-        self.save_worker_data_to_json(worker_info_list)
-        print("port information saved")
 
 
         while True :
@@ -239,6 +248,7 @@ class Application:
                     print("Sending json file to client for Cluster 1:",idx+1)
                     self.send_data(client_socket, file_json_1)
                     self.send_data(client_socket,worker_head_id_1)
+                    self.send_data(client_socket,worker_head_id_2)
 
 
             except ConnectionResetError:
@@ -257,6 +267,8 @@ class Application:
                     print("Sending json file to client for Cluster 2:",idx+1)
                     self.send_data(client_socket, file_json_2)
                     self.send_data(client_socket,worker_head_id_2)
+                    self.send_data(client_socket,worker_head_id_1)
+
 
 
             except ConnectionResetError:
@@ -284,6 +296,8 @@ class Application:
                     unsorted_scores.append(-1)
                 
                 unsorted_scores = (idx, unsorted_scores)
+                print("Unsorted scores",unsorted_scores)
+
                 self.requester.push_scores(unsorted_scores, self.num_workers)
                 print("score sent by idx:", idx)
         
@@ -318,6 +332,8 @@ class Application:
                     unsorted_scores.append(-1)
                 
                 unsorted_scores = (idx, unsorted_scores)
+                print("Unsorted scores",unsorted_scores)
+
                 self.requester.push_scores(unsorted_scores, self.num_workers)
                 print("score sent by idx:", idx)
         

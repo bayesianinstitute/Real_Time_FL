@@ -24,6 +24,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.backends import default_backend
 
 from dotenv import load_dotenv
+from  threading import Thread 
 
 
 
@@ -150,7 +151,7 @@ class Model():
             
             
 
-class Worker:
+class Worker(Thread):
     truffle_file = json.load(open('./build/contracts/FLTask.json'))
 
     
@@ -347,7 +348,7 @@ class Worker:
         return worker_head_ids
     
     def connect_to_peer(self,ip, port):
-        max_retries = 5  # Number of times to retry connecting
+        max_retries = 10  # Number of times to retry connecting
         retries = 0
 
         while retries < max_retries:

@@ -2,6 +2,7 @@ import torch
 import torchvision
 import torch.nn.functional as F
 
+
 class Model():
     '''
     Contains all machine learning functionality
@@ -11,7 +12,7 @@ class Model():
     epochs = 1
 
     def __init__(self,  model, optimizer, device, topk, isEvil = False):
-        self.num_workers = 1
+        self.num_workers = 3
         self.idx = 1
         self.model = model
         self.optimizer = optimizer
@@ -86,16 +87,12 @@ class Model():
             print('finished epoch {} of worker {}'.format(epoch, self.idx))
         return self.model.state_dict()
 
-    def rank_models(self, sorted_models):
-        return [self.num_workers - idx for idx in range(len(sorted_models))]
-    
-    def get_top_k(self, sorted_models):
-        return [models[2] for models in sorted_models][-self.topk:]
     
     def test(self):
         self.model.eval()
         test_loss = 0
         correct = 0
+
         with torch.no_grad():
             for idx, (data, target) in enumerate(self.test_loader):
                 if idx >= self.start_idx_test and idx < self.start_idx_test + self.num_test_batches:
@@ -103,24 +100,32 @@ class Model():
                     test_loss += F.nll_loss(output.to(self.DEVICE), target.to(self.DEVICE)).item()
                     pred = output.data.max(1, keepdim=True)[1]
                     correct += pred.eq(target.data.to(self.DEVICE).view_as(pred)).sum()
-            test_loss /= (self.num_test_batches * self.batch_size)
-        print('\nTest set: , Accuracy: {}/{} ({:.0f}%)\n'.format(
-          correct, self.num_test_batches * self.batch_size,
-          100. * correct / (self.num_test_batches * self.batch_size)))
+
+        test_loss /= (self.num_test_batches * self.batch_size)
+        accuracy = 100. * correct / (self.num_test_batches * self.batch_size)
+
+        print('\nTest set: Accuracy: {}/{} ({:.0f}%), Loss: {:.6f}\n'.format(
+            correct, self.num_test_batches * self.batch_size, accuracy, test_loss))
         
-        return correct / (self.num_test_batches*self.batch_size)
+        return accuracy, test_loss
     
-    def eval(self, model_state_dicts):
+    def eval(self, model_state_dicts,id):
         res = []
         for idx, m in enumerate(model_state_dicts):
-            self.model.load_state_dict(m)
-            acc = self.test()
-            res.append((acc,idx,m))
+            pass
+            # self.model.load_state_dict(m)
+        print("idx : ", id)
+        acc = self.test()
+        res.append((acc,id,m))
             
-            
+        print('length {}  of  res :{} '.format(len(res),res))
         sorted_models = sorted(res, key=lambda t: t[0])
-        return self.rank_models(sorted_models),  self.get_top_k(sorted_models), res
+        # return self.rank_models(sorted_models),  self.get_top_k(sorted_models), res
+        return res
             
+            
+            
+
             
             
             

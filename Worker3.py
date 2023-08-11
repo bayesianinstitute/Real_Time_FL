@@ -20,6 +20,8 @@ import random
 import time
 from Worker_Main import Worker
 from config_app import HOST,PORT
+import csv
+
 
 
 if __name__ == '__main__':
@@ -30,9 +32,16 @@ if __name__ == '__main__':
 
     client_port = random.randint(40000, 50000)
     client_port_next = random.randint(50000, 60000)
+    client_port_next_cluster=random.randint(50000, 60000)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     worker_dict = OrderedDict()
     worker_id = 3
+    locations='INDIA'
+    meta={
+        'port':client_port_next,
+        'locations':locations,
+        'cluster_head_port':client_port_next_cluster
+    }
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -45,16 +54,19 @@ if __name__ == '__main__':
     current_port = client_socket.getsockname()[1]
     print("current port : ", current_port)
     worker = Worker(ipfs_path, device, is_evil, topk,worker_id)
-    worker.send_data(client_socket, client_port_next)
+
 
 
     # receive contract Address
     contract_address=worker.receive_data(client_socket)
 
     print("Contract address : ", contract_address)
-
-    time.sleep(3)
     worker.join_task(contract_address)
+
+
+    print("meta : ", meta)
+    # Sending Meta data
+    worker.send_data(client_socket, meta)
 
     # sending Worker Blockchain Address
 
@@ -70,12 +82,20 @@ if __name__ == '__main__':
     print("received_json : ", received_json)
     received_headid = worker.receive_data(client_socket)
     print("received_headid : ", received_headid)
+    next_cluster_headid=worker.receive_data(client_socket)
+    print("received next cluster headid : ", next_cluster_headid)
+    # List to store accuracy and loss data for each round
+    results = []
+    epoch = 0
 
     while True:
+        epoch += 1
         workerAddress = worker.workerAddress()
 
         print("Training Model")
         print("received_headid : ", received_headid)
+
+        print("received_cluster_headid : ", next_cluster_headid)
 
         weights = worker.train(round=1)
 
@@ -87,7 +107,24 @@ if __name__ == '__main__':
         worker.send_data(client_socket, unsorted_scores)
         print("Send unscored scores")
 
+        # Save accuracy and loss in the results list
+        results.append((epoch,accuracy, loss))
 
+
+        if epoch == 14:
+                    # Save the collected data in a CSV file named after the worker ID
+                csv_filename = f'worker_{worker_id}_accuracy_loss.csv'
+                with open(csv_filename, 'w', newline='') as csvfile:
+                    csv_writer = csv.writer(csvfile)
+                    csv_writer.writerow(['Epoch', 'Accuracy', 'Loss'])
+
+                    for epoch_num, acc, loss in results:
+                        csv_writer.writerow([epoch_num, acc, loss])
+
+                print("Data saved to:", csv_filename)
+                print("Program completed.")
+
+                break
 
         worker_index = received_headid['workerid']
 
@@ -145,6 +182,9 @@ if __name__ == '__main__':
                 print("Client", idx + 1, "disconnected.")
                 client_sockets.pop(idx)
 
+
+            
+            # Now Suffle
             file_name = 'worker_data.json'
             worker_head_id = worker.shuffle_worker_head(received_json)
             print("shuffle_id id ", worker_head_id)
@@ -162,11 +202,74 @@ if __name__ == '__main__':
 
             received_headid = worker_head_id
 
+            
+
+            print("old port {} and new port {}".format(old_client_port_next, client_port_next))
+
+
+            # Sending Model to another cluster model
+            port_cluster=next_cluster_headid['cluster_head_port']
+            print("cluster port :", port_cluster)
+            server_socket_cluster_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print("Making connection to cluster")
+            server_socket_cluster_peer.bind(('localhost', client_port_next_cluster))  # Bind to all available network interfaces
+            print("Making bind to cluster")
+
+            server_socket_cluster_peer.listen(1)
+            C1_client_socket=[]
+            for i in range(1):
+                
+                client_socket_cluster, addr = server_socket_cluster_peer.accept()
+
+                print("Connection from:", addr)
+                C1_client_socket.append(client_socket_cluster)
+
+            print("Sending weights to CLUSTER:")
+            worker.send_data(client_socket_cluster, averaged_weights)
+
+            
+
+
+            worker_weights = []
+            for idx, client_socket in enumerate(C1_client_socket):
+                work_address = worker.receive_data(client_socket)
+                next_cluster_headid=worker.receive_data(client_socket)
+                print("Receive data from client", idx + 1)
+                worker_weights.append(work_address)
+            
+            
+
+            worker.send_data(C1_client_socket, worker_head_id)
+            worker_weights.append(averaged_weights)
+
+
+
+            for idx, weight in enumerate(worker_weights):
+                # The key will be in the format 'worker_1_weights', 'worker_2_weights', and so on
+                key = f'worker_{idx + 1}_weights'
+                # Add the weight to the OrderedDict with the corresponding key
+                worker_dict[key] = weight
+
+            averaged_weights = worker.average(worker_dict)
+            print(" Cluster Averaged weights are Done")
+
+            worker.update_model(averaged_weights)
+
+            print("Worker Update it works and adding weight to ipfs")
+
+            model_filename = 'save_model/model_index_{}.pt'.format(worker_index)
+            torch.save(averaged_weights, model_filename)
+            print("MODEL SAVE TO LOCAL")
+
+
+            print("Connection cluster from:", addr)
+
             try:
                 for idx, client_socket in enumerate(client_sockets):
                     print("Sending json file to client:", idx + 1)
                     worker.send_data(client_socket, worker_head_id)
                     worker.send_data(client_socket, received_json)
+                    worker.send_data(client_socket,next_cluster_headid)
                 # Receive acknowledgment from each client after sending the data
 
             except ConnectionResetError:
@@ -177,7 +280,10 @@ if __name__ == '__main__':
             except Exception as e:
                 print("Error sending data", e)
 
-            print("old port {} and new port {}".format(old_client_port_next, client_port_next))
+
+
+
+
 
             client_sockets = []
 
@@ -220,6 +326,9 @@ if __name__ == '__main__':
                 print("received_headid : ", received_headid)
                 received_json = worker.receive_data(client_socket_peer)
                 print("new received_json : ", received_json)
+
+                next_cluster_headid = worker.receive_data(client_socket_peer)
+                print("received suffle  : ", next_cluster_headid)
 
                 if received_headid['new_port'] == client_port_next:
                     print("I am the header again.")
