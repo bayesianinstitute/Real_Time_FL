@@ -28,9 +28,11 @@ dotenv.config();
 // Access the mnemonic from the environment variables
 const mnemonic = process.env.MNEMONIC;
 
+const projectApi=process.env.PROJECTAPI;
+
 // Check if the mnemonic is defined
-if (!mnemonic) {
-  console.error("Mnemonic not found in .env file.");
+if (!mnemonic ) {
+  console.error("Mnemonic or projectApi not found in .env file.");
   process.exit(1);
 }
 
@@ -45,7 +47,7 @@ if (!mnemonic) {
   
   
       sepolia: {
-        provider: () => new HDWalletProvider(mnemonic , 'wss://eth-sepolia.g.alchemy.com/v2/LkGSnV5tUDxnnC_rZgeRlAY3dt03cak4'),
+        provider: () => new HDWalletProvider(mnemonic , projectApi),
         network_id: 11155111,       // Goerli's id
         confirmations: 2,    // # of confirmations to wait between deployments. (default: 0)
         timeoutBlocks: 200,  // # of blocks before a deployment times out  (minimum/default: 50)

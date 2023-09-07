@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "@truffle/hdwallet-provider": "^2.1.14",
     "dotenv": "^16.3.1",
-    "ipfs-http-client": "^60.0.0"
+    "ipfs-http-client": "^60.0.0",
+    "truffle": "^5.11.3"
   }
 }

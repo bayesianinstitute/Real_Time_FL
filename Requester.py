@@ -3,15 +3,19 @@ import math
 # from turtle import shape
 import numpy as np
 from web3 import Web3, HTTPProvider
-
+from dotenv import load_dotenv
+import os
 class Requester:
     truffle_file = json.load(open('./build/contracts/FLTask.json'))
     score_matrix = None
 
     def __init__(self, key):
         self.key = key
+        load_dotenv()
+        PROJECT_API=os.getenv('PROJECT_API')
+        print("PROJECT_API :",PROJECT_API)
         # init web3.py instance
-        self.w3 = Web3(HTTPProvider("http://localhost:7545"))
+        self.w3 = Web3(HTTPProvider(PROJECT_API))
         if(self.w3.isConnected()):
             print("Requester initialization: connected to blockchain")
 
