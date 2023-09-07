@@ -233,7 +233,7 @@ class Worker(Thread):
     def join_task(self, contract_address):
         self.contract_address = contract_address
         self.contract_instance = self.w3.eth.contract(abi=self.truffle_file['abi'], address=contract_address)
-        deposit = 5000000000000000000  # 5 ethers (in wei)
+        deposit = 1000000000000000000  # 5 ethers (in wei)
         tx = self.contract_instance.functions.joinTask().buildTransaction({
             "gasPrice": self.w3.eth.gas_price,
             "chainId": 1337,
@@ -296,8 +296,6 @@ class Worker(Thread):
         print("Evaluating")
         state_dicts = weights
         unsorted_scores = self.model.eval(state_dicts,w_id)
-        # topk_dicts.append(self.model.model.state_dict())
-        # return self.model.average(topk_dicts), topk_dicts, unsorted_scores
         return unsorted_scores
 
     def update_model(self, avg_dicts):
