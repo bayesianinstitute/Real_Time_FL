@@ -16,10 +16,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # create an IPFS client
-    # client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
+    client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
 
     # add the model file to IPFS
-    # res = client.get(QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn)
+    res = client.get("QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn")
 
     # get the IPFS Folder hash to the added file
     ipfs_hash = "QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn"

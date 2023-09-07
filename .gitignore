@@ -2,3 +2,5 @@ node_modules/
 .env
 Communication\ipfs\t1.txt
 Communication\ipfs\test.py
+package-lock.json
+Communication\ipfs\test.py

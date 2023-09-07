@@ -19,7 +19,6 @@ class IPFSInfuraConnection:
             }
         response = requests.post('https://ipfs.infura.io:5001/api/v0/add', files=files, auth=(self.project_id,self.project_secret))
         print(response.text)
-        print("response: " + response)
         return response
 
   
@@ -29,8 +28,9 @@ class IPFSInfuraConnection:
         params = (
         ('arg',cid),
         )
-        data = requests.post('https://ipfs.infura.io:5001/api/v0/get', params=params, auth=(self.project_id,self.project_secret))
-        print(data.text)
+        data = requests.post('https://ipfs.infura.io:5001/api/v0/cat', params=params, auth=(self.project_id,self.project_secret))
+        print("get",data.text)
+        print(data)
         # Handle the data (e.g., save it to a file)
         return data
 
