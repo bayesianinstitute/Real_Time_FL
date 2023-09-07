@@ -107,25 +107,6 @@ if __name__ == '__main__':
         worker.send_data(client_socket, unsorted_scores)
         print("Send unscored scores")
 
-        # Save accuracy and loss in the results list
-        results.append((epoch,accuracy, loss))
-
-
-        if epoch == 14:
-                    # Save the collected data in a CSV file named after the worker ID
-                csv_filename = f'worker_{worker_id}_accuracy_loss.csv'
-                with open(csv_filename, 'w', newline='') as csvfile:
-                    csv_writer = csv.writer(csvfile)
-                    csv_writer.writerow(['Epoch', 'Accuracy', 'Loss'])
-
-                    for epoch_num, acc, loss in results:
-                        csv_writer.writerow([epoch_num, acc, loss])
-
-                print("Data saved to:", csv_filename)
-                print("Program completed.")
-
-                break
-
         worker_index = received_headid['workerid']
 
         is_header = True
@@ -279,10 +260,6 @@ if __name__ == '__main__':
 
             except Exception as e:
                 print("Error sending data", e)
-
-
-
-
 
 
             client_sockets = []

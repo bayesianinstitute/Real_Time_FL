@@ -134,7 +134,7 @@ contract FLTask {
     function joinTask() public payable returns (string memory) {
         require(!workers[msg.sender].registered, "Worker is already registered");
         require(msg.sender != requester, "Requester cannot be a worker!");
-        require(msg.value == 5 ether, "Worker must deposit 5 ethers to join the task");
+        require(msg.value == 1 ether, "Worker must deposit 5 ethers to join the task");
 
         workers[msg.sender].registered = true;
         workers[msg.sender].workerId = numWorkers + 1;

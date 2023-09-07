@@ -185,6 +185,8 @@ class Worker(Thread):
         # Create Fernet object with AES key
         self.fernet = Fernet(self.aes_key)
         print("Workerid",worker_id)
+
+        #  ipfs connection and blockchain key
         self.key = os.getenv(f'WORKER{worker_id}_KEY')
         self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
 
@@ -203,7 +205,6 @@ class Worker(Thread):
 
 
 
-        # model, opt = self.fsc.fetch_initial_model()
         self.is_evil = is_evil
 
         class_ = getattr(optim, opt['name'])
@@ -220,6 +221,8 @@ class Worker(Thread):
         print("key", self.key)
 
         key = self.key
+
+        # blockchain Connection
         self.w3 = Web3(HTTPProvider("http://localhost:7545"))
         if self.w3.isConnected():
             print("Worker initialization: connected to blockchain")

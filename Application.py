@@ -4,7 +4,6 @@ from Model import Model
 import torch
 import os
 from Requester import Requester
-# from Worker import Worker1
 from Worker1 import Worker
 from dotenv import load_dotenv
 from FSCommunicator import FSCommunicator
