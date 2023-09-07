@@ -20,8 +20,8 @@ import random
 import time
 from Worker_Main import Worker
 from config_app import HOST,PORT
-
 import csv
+
 
 
 if __name__ == '__main__':
@@ -42,8 +42,6 @@ if __name__ == '__main__':
         'locations':locations,
         'cluster_head_port':client_port_next_cluster
     }
-
-
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -86,8 +84,6 @@ if __name__ == '__main__':
     print("received_headid : ", received_headid)
     next_cluster_headid=worker.receive_data(client_socket)
     print("received next cluster headid : ", next_cluster_headid)
-
-
     # List to store accuracy and loss data for each round
     results = []
     epoch = 0
@@ -130,9 +126,8 @@ if __name__ == '__main__':
 
                 break
 
-
         worker_index = received_headid['workerid']
-        
+
         is_header = True
         worker_dict = OrderedDict()
         if received_headid['new_port'] == client_port_next:
@@ -170,7 +165,7 @@ if __name__ == '__main__':
             worker.update_model(averaged_weights)
             print("Worker Update it works and adding weight to ipfs")
 
-            model_filename = 'save_model/model_index_{}.pt'.format(worker_id)
+            model_filename = 'save_model/model_index_{}.pt'.format(worker_index)
             torch.save(averaged_weights, model_filename)
             print("MODEL SAVE TO LOCAL")
 
@@ -188,6 +183,28 @@ if __name__ == '__main__':
                 client_sockets.pop(idx)
 
 
+            
+            # Now Suffle
+            file_name = 'worker_data.json'
+            worker_head_id = worker.shuffle_worker_head(received_json)
+            print("shuffle_id id ", worker_head_id)
+            print("client_port_next_id ", client_port_next)
+
+            old_client_port_next = client_port_next
+
+            if worker_head_id != client_port_next:
+                client_port_next = random.randint(50000, 60000)
+                # Find the dictionary with 'workerid' equal to worker_head_id and update its 'new_port' value
+                for entry in received_json:
+                    if entry['workerid'] == worker_id:
+                        entry['new_port'] = client_port_next
+                        break
+
+            received_headid = worker_head_id
+
+            
+
+            print("old port {} and new port {}".format(old_client_port_next, client_port_next))
 
 
             # Sending Model to another cluster model
@@ -240,34 +257,9 @@ if __name__ == '__main__':
 
             print("Worker Update it works and adding weight to ipfs")
 
-            model_filename = 'save_model/model_index_{}.pt'.format(worker_id)
+            model_filename = 'save_model/model_index_{}.pt'.format(worker_index)
             torch.save(averaged_weights, model_filename)
             print("MODEL SAVE TO LOCAL")
-
-                        # Now Suffle
-            file_name = 'worker_data.json'
-            worker_head_id = worker.shuffle_worker_head(received_json)
-            print("shuffle_id id ", worker_head_id)
-            print("client_port_next_id ", client_port_next)
-
-            old_client_port_next = client_port_next
-
-            if worker_head_id != client_port_next:
-                client_port_next = random.randint(50000, 60000)
-                client_port_next_cluster== random.randint(50000, 60000)
-
-                # Find the dictionary with 'workerid' equal to worker_head_id and update its 'new_port' value
-                for entry in received_json:
-                    if entry['workerid'] == worker_id:
-                        entry['new_port'] = client_port_next
-                        entry['cluster_head_port']=client_port_next_cluster
-                        break
-
-            received_headid = worker_head_id
-
-            
-
-            print("old port {} and new port {}".format(old_client_port_next, client_port_next))
 
 
             print("Connection cluster from:", addr)

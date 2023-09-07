@@ -22,7 +22,6 @@ from Worker_Main import Worker
 from config_app import HOST,PORT
 import csv
 
-
 if __name__ == '__main__':
     ipfs_path = 'QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -82,7 +81,6 @@ if __name__ == '__main__':
     received_headid = worker.receive_data(client_socket)
     print("received_headid : ", received_headid)
     next_cluster_headid=worker.receive_data(client_socket)
-    print("received next cluster headid : ", next_cluster_headid)
     # List to store accuracy and loss data for each round
     results = []
     epoch = 0
