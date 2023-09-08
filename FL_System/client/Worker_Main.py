@@ -209,7 +209,7 @@ class Worker(Thread):
         self.w3 = Web3(HTTPProvider(self.PROJECT_API))
 
 
-        if self.w3.isConnected():
+        if self.w3.is_connected():
             print("Worker initialization: connected to blockchain")
 
         self.account = self.w3.eth.account.privateKeyToAccount(key)

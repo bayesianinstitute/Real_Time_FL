@@ -6,7 +6,7 @@ from web3 import Web3, HTTPProvider
 from dotenv import load_dotenv
 import os
 class Requester:
-    truffle_file = json.load(open('./build/contracts/FLTask.json'))
+    truffle_file=json.load(open('../../build/contracts/FLTask.json'))
     score_matrix = None
 
     def __init__(self, key):
@@ -16,7 +16,7 @@ class Requester:
         print("PROJECT_API :",PROJECT_API)
         # init web3.py instance
         self.w3 = Web3(HTTPProvider(PROJECT_API))
-        if(self.w3.isConnected()):
+        if(self.w3.is_connected()):
             print("Requester initialization: connected to blockchain")
 
         self.account = self.w3.eth.account.privateKeyToAccount(key)

@@ -1,12 +1,13 @@
-from BCCommunicator import BCCommunicator
-from FSCommunicator import FSCommunicator
-from Model import Model
+# from futuretest.BCCommunicator import BCCommunicator
+# from futuretest.FSCommunicator import FSCommunicator
+# from futuretest.Model import Model
+# from futuretest.BCCommunicator import BCCommunicator
 import torch
 import os
-from FL_System.server.Requester import Requester
+from Requester import Requester
 from dotenv import load_dotenv
-from FSCommunicator import FSCommunicator
-import ipfshttpclient
+# from futuretest.FSCommunicator import FSCommunicator
+# import ipfshttpclient
 import socket
 import pickle
 import json 
@@ -15,6 +16,9 @@ import random
 from collections import OrderedDict
 
 from config_app import HOST,PORT
+
+
+
 
 
 # Main class to simulate the distributed application
@@ -130,7 +134,7 @@ class Application:
     
     def run(self):
         load_dotenv()
-        requesterKey=str(input("Eneter your Private Key"))
+        requesterKey=str(input("Eneter your Private Key : "))
         self.requester = Requester(requesterKey)
         contract_address=self.requester.deploy_contract()
         print("Contract Address:", contract_address)
