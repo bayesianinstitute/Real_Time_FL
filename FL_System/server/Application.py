@@ -21,13 +21,13 @@ from config_app import HOST,PORT
 class Application:
 
     def __init__(self, num_workers, num_rounds, num_evil=0):
-        self.client = ipfshttpclient.connect()
+        # self.client = ipfshttpclient.connect()
     
         self.num_workers = num_workers
         self.num_rounds = num_rounds
         self.DEVICE = torch.device(
             "cuda:0" if torch.cuda.is_available() else "cpu")
-        # self.fspath ='QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
+        self.fspath ='QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
         self.workers = []
         self.topk = num_workers
         self.worker_dict =  OrderedDict()
@@ -130,7 +130,8 @@ class Application:
     
     def run(self):
         load_dotenv()
-        self.requester = Requester(os.getenv('REQUESTER_KEY'))
+        requesterKey=str(input("Eneter your Private Key"))
+        self.requester = Requester(requesterKey)
         contract_address=self.requester.deploy_contract()
         print("Contract Address:", contract_address)
         self.requester.init_task(10000000000000000000, self.fspath, self.num_rounds)
