@@ -211,7 +211,7 @@ class Worker(Thread):
     def join_task(self, contract_address):
         self.contract_address = contract_address
         self.contract_instance = self.w3.eth.contract(abi=self.truffle_file['abi'], address=contract_address)
-        deposit = 1000000000000000000  # 5 ethers (in wei)
+        deposit = 100000000000000000  # 0.1 ethers (in Wei)
         tx = self.contract_instance.functions.joinTask().buildTransaction({
             "gasPrice": self.w3.eth.gas_price,
             "chainId": 1337,
@@ -223,6 +223,7 @@ class Worker(Thread):
         signed_tx = self.w3.eth.account.signTransaction(tx, self.key)
         tx_hash = self.w3.eth.sendRawTransaction(signed_tx.rawTransaction)
         tx_receipt = self.w3.eth.getTransactionReceipt(tx_hash)
+
         
  
 
