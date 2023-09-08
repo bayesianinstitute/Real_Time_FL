@@ -162,45 +162,23 @@ class Worker(Thread):
         load_dotenv()
 
 
-
-                        # Generate RSA key pair
-        self.private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
-        self.public_key = self.private_key.public_key()
-
-        # Serialize public key to PEM format
-        self.public_key_pem = self.public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-
-        # Generate AES key
-        self.aes_key = Fernet.generate_key()
-        print("ase", self.aes_key)
-        
-
-        # Create Fernet object with AES key
-        self.fernet = Fernet(self.aes_key)
-        print("Workerid",worker_id)
-
         #  ipfs connection and blockchain key
         self.key = os.getenv(f'WORKER{worker_id}_KEY')
-        self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+        # self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
 
 
-        self.model_hash = 'QmZaeFLUPJZopTvKWsuji2Q5RPWaTLBRtpCoBbDM6sDyqM'
-        model_bytes = self.client_url.cat(self.model_hash)
-        model = torch.jit.load(io.BytesIO(model_bytes),
-                               map_location=device)
+        # self.model_hash = 'QmZaeFLUPJZopTvKWsuji2Q5RPWaTLBRtpCoBbDM6sDyqM'
+        # model_bytes = self.client_url.cat(self.model_hash)
+        # model = torch.jit.load(io.BytesIO(model_bytes),
+        #                        map_location=device)
+        model= torch.load("fs-sim/model.pt")
         print("Done Model!!!!!!")
 
-        optimizer_hash = 'Qmd96G9irL6hQuSfGFNoYqeVgg8DvAyv6GCt9CqCsEDj1w'
-        optimizer_bytes = self.client_url.cat(optimizer_hash)
-        opt = torch.load(io.BytesIO(
-            optimizer_bytes), map_location=device)
+        # optimizer_hash = 'Qmd96G9irL6hQuSfGFNoYqeVgg8DvAyv6GCt9CqCsEDj1w'
+        # optimizer_bytes = self.client_url.cat(optimizer_hash)
+        # opt = torch.load(io.BytesIO(
+        #     optimizer_bytes), map_location=device)
+        opt=torch.load("fs-sim/optimizer.pt")
         print("Done Optimizer !!!!!")
 
 
@@ -290,6 +268,30 @@ class Worker(Thread):
         # Decoding the serialized data using pickle
         data = pickle.loads(serialized_data)
         return data
+    
+    def send_file(client_socket, file_path):
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as file:
+                data = file.read()
+                client_socket.sendall(data)
+                return True
+        else:
+            return False
+        
+    def receive_file(server_socket, save_path):
+        data = b""
+        while True:
+            chunk = server_socket.recv(1024)
+            if not chunk:
+                break
+            data += chunk
+
+        if data:
+            with open(save_path, 'wb') as file:
+                file.write(data)
+                return True
+        else:
+            return False
     
 
     def evaluate(self, weights,w_id):

@@ -3,8 +3,7 @@ from FSCommunicator import FSCommunicator
 from Model import Model
 import torch
 import os
-from Requester import Requester
-from Worker1 import Worker
+from FL_System.server.Requester import Requester
 from dotenv import load_dotenv
 from FSCommunicator import FSCommunicator
 import ipfshttpclient
@@ -21,14 +20,14 @@ from config_app import HOST,PORT
 # Main class to simulate the distributed application
 class Application:
 
-    def __init__(self, num_workers, num_rounds, ipfs_folder_hash, num_evil=0):
+    def __init__(self, num_workers, num_rounds, num_evil=0):
         self.client = ipfshttpclient.connect()
     
         self.num_workers = num_workers
         self.num_rounds = num_rounds
         self.DEVICE = torch.device(
             "cuda:0" if torch.cuda.is_available() else "cpu")
-        self.fspath ='QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
+        # self.fspath ='QmdzVYP8EqpK8CvH7aEAxxms2nCRNc98fTFL2cSiiRbHxn'
         self.workers = []
         self.topk = num_workers
         self.worker_dict =  OrderedDict()
@@ -141,7 +140,7 @@ class Application:
 
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((HOST, PORT))
-        server_socket.listen(6)  # Allow Six client connections
+        server_socket.listen(3)  # Allow Six client connections
         print("Waiting for connections from clients...")
 
         # Accept connections from two clients
@@ -149,7 +148,7 @@ class Application:
         client_sockets = []
         worker_info_list = []
         # Accept connections from worker clients and store their socket information
-        for i in range(6):
+        for i in range(3):
             client_socket, addr = server_socket.accept()
             print("Connection from:", addr)
             client_sockets.append(client_socket)
@@ -173,6 +172,7 @@ class Application:
 
         try:
                 for idx,client_socket in enumerate(client_sockets):
+                    
                     print("Sending Contract Address to client:",idx+1)
                     self.send_data(client_socket, contract_address)
 
@@ -261,25 +261,25 @@ class Application:
             except Exception as e:
                 print("Error sending data",e)
 
-            try:
-                for idx,client_socket in enumerate(client_sockets[3:]):
-                    print("Sending json file to client for Cluster 2:",idx+1)
-                    self.send_data(client_socket, file_json_2)
-                    self.send_data(client_socket,worker_head_id_2)
-                    self.send_data(client_socket,worker_head_id_1)
+            # try:
+            #     for idx,client_socket in enumerate(client_sockets[3:]):
+            #         print("Sending json file to client for Cluster 2:",idx+1)
+            #         self.send_data(client_socket, file_json_2)
+            #         self.send_data(client_socket,worker_head_id_2)
+            #         self.send_data(client_socket,worker_head_id_1)
 
 
 
-            except ConnectionResetError:
-                # Handle the case when a client disconnects unexpectedly
-                print("Client", idx + 1, "disconnected.")
-                client_sockets.pop(idx)
+            # except ConnectionResetError:
+            #     # Handle the case when a client disconnects unexpectedly
+            #     print("Client", idx + 1, "disconnected.")
+            #     client_sockets.pop(idx)
 
 
 
 
-            except Exception as e:
-                print("Error sending data",e)
+            # except Exception as e:
+            #     print("Error sending data",e)
 
             print("Send file to all clusters")
 
@@ -322,41 +322,41 @@ class Application:
             self.requester.distribute_rewards()
             print("Distributed rewards for Cluster 1. ")
 
-            for idx, client_socket in enumerate(client_sockets[3:]):
-                unsorted_scores = self.receive_data(client_socket)
-                unsorted_scores = [score[0][0].cpu().item() for score in unsorted_scores]
+            # for idx, client_socket in enumerate(client_sockets[3:]):
+            #     unsorted_scores = self.receive_data(client_socket)
+            #     unsorted_scores = [score[0][0].cpu().item() for score in unsorted_scores]
                 
-                # Ensure there is one score per worker (num_workers)
-                while len(unsorted_scores) < self.num_workers:
-                    unsorted_scores.append(-1)
+            #     # Ensure there is one score per worker (num_workers)
+            #     while len(unsorted_scores) < self.num_workers:
+            #         unsorted_scores.append(-1)
                 
-                unsorted_scores = (idx, unsorted_scores)
-                print("Unsorted scores",unsorted_scores)
+            #     unsorted_scores = (idx, unsorted_scores)
+            #     print("Unsorted scores",unsorted_scores)
 
-                self.requester.push_scores(unsorted_scores, self.num_workers)
-                print("score sent by idx:", idx)
+            #     self.requester.push_scores(unsorted_scores, self.num_workers)
+            #     print("score sent by idx:", idx)
         
 
 
-            overall_scores = self.requester.calc_overall_scores(
-                self.requester.get_score_matrix(), self.num_workers)
+            # overall_scores = self.requester.calc_overall_scores(
+            #     self.requester.get_score_matrix(), self.num_workers)
             
-            print("get score matrix:", self.requester.get_score_matrix())
-            round_top_k = self.requester.compute_top_k(
-                list(self.worker_address.values())[3:], overall_scores)
+            # print("get score matrix:", self.requester.get_score_matrix())
+            # round_top_k = self.requester.compute_top_k(
+            #     list(self.worker_address.values())[3:], overall_scores)
             
-            penalize = self.requester.find_bad_workers(
-                list(self.worker_address.values())[3:], overall_scores)
-            print("penalize :", penalize)
-            self.requester.penalize_worker(penalize)
-            self.requester.refund_worker(list(self.worker_address.values())[3:])
+            # penalize = self.requester.find_bad_workers(
+            #     list(self.worker_address.values())[3:], overall_scores)
+            # print("penalize :", penalize)
+            # self.requester.penalize_worker(penalize)
+            # self.requester.refund_worker(list(self.worker_address.values())[3:])
 
             
             
-            self.requester.submit_top_k(round_top_k)
+            # self.requester.submit_top_k(round_top_k)
             
-            self.requester.distribute_rewards()
-            print("Distributed rewards for Cluster 2. Next round starting soon...")
+            # self.requester.distribute_rewards()
+            # print("Distributed rewards for Cluster 2. Next round starting soon...")
 
             # self.requester.next_round()
                    
