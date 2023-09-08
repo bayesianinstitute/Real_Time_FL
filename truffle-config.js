@@ -28,7 +28,7 @@ dotenv.config();
 // Access the mnemonic from the environment variables
 const mnemonic = process.env.MNEMONIC;
 
-const projectApi=process.env.PROJECTAPI;
+// const projectApi=process.env.PROJECTAPI;
 
 // Check if the mnemonic is defined
 if (!mnemonic ) {

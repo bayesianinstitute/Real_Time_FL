@@ -6,8 +6,8 @@ import socket
 import pickle
 
 from web3 import Web3, HTTPProvider
-from BCCommunicator import BCCommunicator
-from FSCommunicator import FSCommunicator
+from futuretest.BCCommunicator import BCCommunicator
+from futuretest.FSCommunicator import FSCommunicator
 
 import ipfshttpclient
 import io

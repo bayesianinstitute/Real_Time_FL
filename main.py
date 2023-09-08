@@ -1,4 +1,4 @@
-from Application import Application
+from FL_System.server import Application
 import argparse
 import ipfshttpclient
 
