@@ -16,7 +16,7 @@ class Requester:
         print("PROJECT_API :",PROJECT_API)
         # init web3.py instance
         self.w3 = Web3(HTTPProvider(PROJECT_API))
-        if(self.w3.is_connected()):
+        if(self.w3.isConnected()):
             print("Requester initialization: connected to blockchain")
 
         self.account = self.w3.eth.account.privateKeyToAccount(key)
