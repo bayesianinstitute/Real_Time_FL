@@ -6,9 +6,6 @@ import socket
 import pickle
 
 from web3 import Web3, HTTPProvider
-from futuretest.BCCommunicator import BCCommunicator
-from futuretest.FSCommunicator import FSCommunicator
-
 import ipfshttpclient
 import io
 
@@ -18,8 +15,8 @@ import torch.nn.functional as F
 from collections import OrderedDict
 import random
 import time
-from FL_System.client.Worker_Main import Worker
-from FL_System.config_app import HOST,PORT
+from Worker_Main import Worker
+from config_app import HOST,PORT
 import requests
 
 def get_public_ip():
@@ -63,7 +60,7 @@ if __name__ == '__main__':
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
+    public_ip='localhost'
     # Bind the worker's socket to the specified port
     client_socket.bind((public_ip, client_port))  # Bind to all available network interfaces
 
@@ -71,7 +68,8 @@ if __name__ == '__main__':
     print("Connected to server")
     current_port = client_socket.getsockname()[1]
     print("current port : ", current_port)
-    worker = Worker( device, is_evil, topk,worker_id)
+    key='0x8f1eef06d44df3cd95f68a7774cc1154daf4247d2e948b3fff17c8f2da368cca'
+    worker = Worker( device, is_evil, topk,worker_id,key)
 
 
 
@@ -309,11 +307,12 @@ if __name__ == '__main__':
                 # print("Got ipfs Hash", get_hash["Hash"])
 
                 # Receive 'model.pt' file from the server
-                if worker.receive_file(client_socket, 'model.pt'):
+                try : 
+                    worker.receive_file(client_socket, 'model.pt')
                     model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
                     average_Weight = torch.load(model_filename)
                     print("Received 'model.pt' file from the server and saved it as 'model_received.pt'.")
-                else:
+                except:
                     print("Failed to receive the 'model.pt' file from the server.")
 
                 worker.update_model(average_Weight)

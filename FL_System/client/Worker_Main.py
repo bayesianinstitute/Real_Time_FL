@@ -6,8 +6,7 @@ import socket
 import pickle
 
 from web3 import Web3, HTTPProvider
-from futuretest.BCCommunicator import BCCommunicator
-from futuretest.FSCommunicator import FSCommunicator
+
 
 import ipfshttpclient
 import io
@@ -156,14 +155,15 @@ class Worker(Thread):
 
     
 
-    def __init__(self, ipfs_path, device, is_evil, topk,worker_id):
+    def __init__(self,  device, is_evil, topk,worker_id,keyy):
         # self.bcc = BCCommunicator()
         # self.fsc = FSCommunicator(ipfs_path, device)
         load_dotenv()
 
 
         #  ipfs connection and blockchain key
-        self.key = str(input("Enter the private key"))
+        # self.key = str(input("Enter the private key"))
+        self.key = keyy
         
         # self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
 
@@ -209,7 +209,7 @@ class Worker(Thread):
         self.w3 = Web3(HTTPProvider(self.PROJECT_API))
 
 
-        if self.w3.is_connected():
+        if self.w3.isConnected():
             print("Worker initialization: connected to blockchain")
 
         self.account = self.w3.eth.account.privateKeyToAccount(key)
@@ -276,31 +276,6 @@ class Worker(Thread):
         # Decoding the serialized data using pickle
         data = pickle.loads(serialized_data)
         return data
-    
-    def send_file(client_socket, file_path):
-        if os.path.exists(file_path):
-            with open(file_path, "rb") as file:
-                data = file.read()
-                client_socket.sendall(data)
-                return True
-        else:
-            return False
-        
-    def receive_file(server_socket, save_path):
-        data = b""
-        while True:
-            chunk = server_socket.recv(1024)
-            if not chunk:
-                break
-            data += chunk
-
-        if data:
-            with open(save_path, 'wb') as file:
-                file.write(data)
-                return True
-        else:
-            return False
-    
 
     def evaluate(self, weights,w_id):
         print("Evaluating")
@@ -375,3 +350,55 @@ class Worker(Thread):
                 time.sleep(1)
 
         raise ConnectionError(f"Failed to connect to peer {ip}:{port} after {max_retries} retries.")
+    
+
+    def send_file(self, client_socket, file_path):
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as file:
+                data = file.read()
+                max_retries = 10  # Number of times to retry sending
+                retries = 0
+
+                while retries < max_retries:
+                    try:
+                        client_socket.sendall(data)
+                        print("File sent successfully")
+                        return True
+                    except socket.error as e:
+                        retries += 1
+                        print(f"Failed to send file. Retrying ({retries}/{max_retries})...")
+                        # Add a delay before retrying
+                        time.sleep(1)
+
+                raise ConnectionError(f"Failed to send file after {max_retries} retries.")
+        else:
+            return False
+
+    def receive_file(self, server_socket, save_path):
+        data = b""
+        max_retries = 10  # Number of times to retry receiving
+        retries = 0
+
+        while retries < max_retries:
+            try:
+                while True:
+                    chunk = server_socket.recv(1024)
+                    if not chunk:
+                        break
+                    data += chunk
+
+                if data:
+                    with open(save_path, 'wb') as file:
+                        file.write(data)
+                        print("File received successfully")
+                        return True
+                else:
+                    return False
+            except socket.error as e:
+                retries += 1
+                print(f"Failed to receive file. Retrying ({retries}/{max_retries})...")
+                # Add a delay before retrying
+                time.sleep(1)
+
+        raise ConnectionError(f"Failed to receive file after {max_retries} retries.")
+    

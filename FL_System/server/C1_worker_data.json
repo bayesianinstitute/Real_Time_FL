@@ -1,0 +1,1 @@
+[{"address": "127.0.0.1", "port": 41020, "workerid": 1, "new_port": 52898, "location": "INDIA", "cluster_head_port": 50030}, {"address": "127.0.0.1", "port": 42611, "workerid": 2, "new_port": 54446, "location": "INDIA", "cluster_head_port": 55777}, {"address": "127.0.0.1", "port": 40758, "workerid": 3, "new_port": 57259, "location": "INDIA", "cluster_head_port": 56493}]

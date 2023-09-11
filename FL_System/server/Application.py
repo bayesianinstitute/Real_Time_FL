@@ -134,7 +134,8 @@ class Application:
     
     def run(self):
         load_dotenv()
-        requesterKey=str(input("Eneter your Private Key : "))
+        # requesterKey=str(input("Eneter your Private Key : "))
+        requesterKey='0x87daeac967bdec052f06b092cb5d51c1f3cf52097f99234b21d812a8004a8183'
         self.requester = Requester(requesterKey)
         contract_address=self.requester.deploy_contract()
         print("Contract Address:", contract_address)
@@ -230,10 +231,10 @@ class Application:
             # file_json=self.load_worker_data_from_json()
 
             file_name_1='C1_worker_data.json'
-            file_name_2='C2_worker_data.json'
+            # file_name_2='C2_worker_data.json'
 
             file_json_1=self.load_worker_data_from_json(file_name_1)
-            file_json_2=self.load_worker_data_from_json(file_name_2)
+            # file_json_2=self.load_worker_data_from_json(file_name_2)
 
 
 
@@ -241,8 +242,8 @@ class Application:
             worker_head_ids_1 = self.load_worker_head_ids(file_name_1)
             worker_head_id_1 = self.shuffle_worker_head(worker_head_ids_1)
 
-            worker_head_ids_2 = self.load_worker_head_ids(file_name_2)
-            worker_head_id_2 = self.shuffle_worker_head(worker_head_ids_2)
+            # worker_head_ids_2 = self.load_worker_head_ids(file_name_2)
+            # worker_head_id_2 = self.shuffle_worker_head(worker_head_ids_2)
 
 
             print("suffle_id id ",worker_head_id_1)
@@ -252,7 +253,7 @@ class Application:
                     print("Sending json file to client for Cluster 1:",idx+1)
                     self.send_data(client_socket, file_json_1)
                     self.send_data(client_socket,worker_head_id_1)
-                    self.send_data(client_socket,worker_head_id_2)
+                    # self.send_data(client_socket,worker_head_id_2)
 
 
             except ConnectionResetError:
