@@ -84,6 +84,10 @@ if __name__ == '__main__':
     print("received_json : ", received_json)
     received_headid = worker.receive_data(client_socket)
     print("received_headid server : ", received_headid)
+    print("Length : ", len(received_json))
+
+    c_length=len(received_json)-1
+    
  
     results = []
     epoch = 0
@@ -114,11 +118,11 @@ if __name__ == '__main__':
 
             server_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server_socket_peer.bind(('localhost', client_port_next))  # Bind to all available network interfaces
-            server_socket_peer.listen(2)
+            server_socket_peer.listen(c_length)
 
             client_sockets = []
 
-            for i in range(2):
+            for i in range(c_length):
                 client_socket, addr = server_socket_peer.accept()
                 print("Connection from:", addr)
                 client_sockets.append(client_socket)
@@ -229,7 +233,7 @@ if __name__ == '__main__':
 
 
 
-
+                print("trying to received model file")
                 try : 
                     worker.receive_file(client_socket, 'model.pt')
                     model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
