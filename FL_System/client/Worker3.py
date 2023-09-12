@@ -1,20 +1,9 @@
-import json
-import torch.optim as optim
-import os
 import torch
 import socket
-import pickle
-
-from web3 import Web3, HTTPProvider
 import ipfshttpclient
-import io
-
 import torch
-import torchvision
-import torch.nn.functional as F
 from collections import OrderedDict
 import random
-import time
 from Worker_Main import Worker
 from config_app import HOST,PORT
 import requests
