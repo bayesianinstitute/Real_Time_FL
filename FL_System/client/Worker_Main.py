@@ -334,7 +334,7 @@ class Worker(Thread):
         return worker_head_ids
     
     def connect_to_peer(self,ip, port):
-        max_retries = 10  # Number of times to retry connecting
+        max_retries = 20  # Number of times to retry connecting
         retries = 0
 
         while retries < max_retries:

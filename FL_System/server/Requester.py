@@ -44,7 +44,9 @@ class Requester:
     def get_contract_address(self):
         return self.contract_address
 
-    def init_task(self, deposit, model_uri, num_rounds):
+    def init_task(self, model_uri, num_rounds):
+            # Send 1 ETH as the deposit
+        deposit = self.w3.toWei(1, 'ether')
         contract_instance = self.w3.eth.contract(abi=self.truffle_file['abi'], address=self.contract_address)
 
         tx = contract_instance.functions.initializeTask(model_uri, num_rounds).buildTransaction({

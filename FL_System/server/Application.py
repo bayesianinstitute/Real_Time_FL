@@ -135,11 +135,11 @@ class Application:
     def run(self):
         load_dotenv()
         # requesterKey=str(input("Eneter your Private Key : "))
-        requesterKey='0x87daeac967bdec052f06b092cb5d51c1f3cf52097f99234b21d812a8004a8183'
+        requesterKey='0x0d8de13c6faecf4520c71859489eacbed510cad1c5d59fc05cb9a64235f3b4ba'
         self.requester = Requester(requesterKey)
         contract_address=self.requester.deploy_contract()
         print("Contract Address:", contract_address)
-        self.requester.init_task(10000000000000000000, self.fspath, self.num_rounds)
+        self.requester.init_task( self.fspath, self.num_rounds)
         print("Task initialized")
 
         # Create a socket
