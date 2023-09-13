@@ -1,6 +1,3 @@
-import json
-import torch.optim as optim
-import os
 import torch
 import socket
 import ipfshttpclient
@@ -10,6 +7,8 @@ import random
 from Worker_Main import Worker
 from config_app import HOST,PORT
 import requests
+import csv
+import time
 
 def get_public_ip():
     try:
@@ -27,6 +26,7 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     is_evil = False
     topk = 1
+    startTime=time.time()
 
     client_port = random.randint(40000, 50000)
     client_port_next = random.randint(50000, 60000)
@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    public_ip='localhost'
+    # public_ip='localhost'
     # Bind the worker's socket to the specified port
     client_socket.bind((public_ip, client_port))  # Bind to all available network interfaces
 
@@ -59,14 +59,14 @@ if __name__ == '__main__':
     print("Connected to server")
     current_port = client_socket.getsockname()[1]
     print("current port : ", current_port)
-    key='0x8f1eef06d44df3cd95f68a7774cc1154daf4247d2e948b3fff17c8f2da368cca'
+    key='0x26615ca1a70887e89103010a4aa25853006ac3abf707eceb5c13ca11d57e273f'
     worker = Worker( device, is_evil, topk,worker_id,key)
 
     # receive contract Address
-    contract_address=worker.receive_data(client_socket)
+    # contract_address=worker.receive_data(client_socket)
 
-    print("Contract address : ", contract_address)
-    worker.join_task(contract_address)
+    # print("Contract address : ", contract_address)
+    # worker.join_task(contract_address)
 
     print("meta : ", meta)
     # Sending Meta data
@@ -86,28 +86,50 @@ if __name__ == '__main__':
     print("received_headid server : ", received_headid)
     print("Length : ", len(received_json))
 
-    c_length=len(received_json)-1
+    num_Worker=len(received_json)-1
     
- 
-    results = []
-    epoch = 0
-
+    epoch=0
+    results=[]
     while True:
-        epoch += 1
         workerAddress = worker.workerAddress()
+        epoch+=1
 
         print("Training Model")
         print("received_headid : ", received_headid)
 
-        weights = worker.train(round=1)
+        print("Epoch : ", epoch)
+
+        weights = worker.train(is_evil)
 
         accuracy,loss=worker.test()
         print('\nResult set: Accuracy:  ({:.0f}%), Loss: {:.6f}\n'.format(accuracy, loss))
 
-        unsorted_scores =worker.evaluate(weights,worker_id)
+        # unsorted_scores =worker.evaluate(weights,worker_id)
 
-        worker.send_data(client_socket, unsorted_scores)
-        print("Send unscored scores")
+        # worker.send_data(client_socket, unsorted_scores)
+        # print("Send unscored scores")
+        executionTime = (time.time() - startTime)
+
+        # Save accuracy and loss in the results list
+        results.append((epoch,accuracy, loss,executionTime))
+
+
+        if epoch == 14:
+                    # Save the collected data in a CSV file named after the worker ID
+                csv_filename = f'result\worker_{worker_id}_accuracy_loss.csv'
+                with open(csv_filename, 'w', newline='') as csvfile:
+                    csv_writer = csv.writer(csvfile)
+                    csv_writer.writerow(['Epoch', 'Accuracy', 'Loss'])
+
+                    for epoch_num, acc, loss,executionTime in results:
+                        csv_writer.writerow([epoch_num, acc, loss,executionTime])
+
+                print("Data saved to:", csv_filename)
+                print("Program completed.")
+
+                break
+
+
 
         worker_index = received_headid['workerid']
 
@@ -118,11 +140,11 @@ if __name__ == '__main__':
 
             server_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server_socket_peer.bind(('localhost', client_port_next))  # Bind to all available network interfaces
-            server_socket_peer.listen(c_length)
+            server_socket_peer.listen(num_Worker)
 
             client_sockets = []
 
-            for i in range(c_length):
+            for i in range(num_Worker-1):
                 client_socket, addr = server_socket_peer.accept()
                 print("Connection from:", addr)
                 client_sockets.append(client_socket)
@@ -131,11 +153,9 @@ if __name__ == '__main__':
 
             worker_weights = []
             for idx, client_socket in enumerate(client_sockets):
-                worker_weight = worker.receive_data(client_socket)
-                worker.send_data(client_socket,"Ack")
-                print("Receive worker-weights from client", idx + 1)
-                worker_weights.append(worker_weight)
-
+                work_address = worker.receive_data(client_socket)
+                print("Receive data from client", idx + 1)
+                worker_weights.append(work_address)
 
             # Assuming you want to store the worker addresses in the worker_dict
             for idx, weight in enumerate(worker_weights):
@@ -147,11 +167,30 @@ if __name__ == '__main__':
             averaged_weights = worker.average(worker_dict)
             print("Averaged weights are Done")
 
-                        # Now Suffle
+            worker.update_model(averaged_weights)
+            print("Worker Update it works and adding weight to ipfs")
+
+            model_filename = 'save_model/model_index_{}.pt'.format(worker_index)
+            torch.save(averaged_weights, model_filename)
+            print("MODEL SAVE TO LOCAL")
+
+            # model_hash = worker.client_url.add(model_filename)
+
+            try:
+                for idx, client_socket in enumerate(client_sockets):
+                    print("Sending ipfs hash to client:", idx + 1)
+                    worker.send_data(client_socket, averaged_weights)
+                    print("Sent ipfs hash to clients", idx + 1)
+
+            except ConnectionResetError:
+                # Handle the case when a client disconnects unexpectedly
+                print("Client", idx + 1, "disconnected.")
+                client_sockets.pop(idx)
+
+            file_name = 'worker_data.json'
             worker_head_id = worker.shuffle_worker_head(received_json)
             print("shuffle_id id ", worker_head_id)
             print("client_port_next_id ", client_port_next)
-
 
             old_client_port_next = client_port_next
 
@@ -170,7 +209,8 @@ if __name__ == '__main__':
                     print("Sending json file to client:", idx + 1)
                     worker.send_data(client_socket, worker_head_id)
                     worker.send_data(client_socket, received_json)
-            
+                # Receive acknowledgment from each client after sending the data
+
             except ConnectionResetError:
                 # Handle the case when a client disconnects unexpectedly
                 print("Client", idx + 1, "disconnected.")
@@ -179,29 +219,7 @@ if __name__ == '__main__':
             except Exception as e:
                 print("Error sending data", e)
 
-            worker.update_model(averaged_weights)
-            print("Worker Update it works and adding weight to ipfs")
-
-            model_filename = 'save_model/model_index_{}.pt'.format(worker_index)
-            torch.save(averaged_weights, model_filename)
-            print("MODEL SAVE TO LOCAL")
-
-            try:
-                for idx, client_socket in enumerate(client_sockets):
-                    print("Sending model  to client:", idx + 1)
-                    worker.send_file(client_socket,model_filename)
-                    print("Sent ipfs hash to clients", idx + 1)
-
-            except ConnectionResetError:
-                # Handle the case when a client disconnects unexpectedly
-                print("Client", idx + 1, "disconnected.")
-                client_sockets.pop(idx)
-
-
-
             print("old port {} and new port {}".format(old_client_port_next, client_port_next))
-
-
 
             client_sockets = []
 
@@ -223,31 +241,29 @@ if __name__ == '__main__':
                 client_socket_peer = worker.connect_to_peer(peer_ip, peer_port)
                 worker.send_data(client_socket_peer, weights)
                 print("Worker Sending Weights to peer")
-                a=worker.receive_data(client_socket_peer)
-                print(a)
-                # Receive 'model.pt' file from the server
+
+                print("received_json", received_json)
+
+                average_Weight = worker.receive_data(client_socket_peer)
+                # print("Got ipfs Hash", get_hash["Hash"])
+                print("received worker weights")
+
+
+
+                # model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
+
+
+
+                # average_Weight = torch.load(model_filename)
+
+                worker.update_model(average_Weight)
+                print("Updated model weights")
+
                 received_headid = worker.receive_data(client_socket_peer)
                 print("received_headid : ", received_headid)
                 received_json = worker.receive_data(client_socket_peer)
                 print("new received_json : ", received_json)
 
-
-
-                print("trying to received model file")
-                try : 
-                    worker.receive_file(client_socket, 'model.pt')
-                    model_filename = 'save_model/model_index_{}.pt'.format(received_headid['workerid'])
-                    average_Weight = torch.load(model_filename)
-                    print("Received 'model.pt' file from the server and saved it as 'model_received.pt'.")
-                except:
-                    print("Failed to receive the 'model.pt' file from the server.")
-
-                worker.update_model(average_Weight)
-                print("Updated model weights")
-
-
-
-  
                 if received_headid['new_port'] == client_port_next:
                     print("I am the header again.")
                     is_header = True
