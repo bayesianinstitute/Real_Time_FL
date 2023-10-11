@@ -10,3 +10,4 @@ encrypted_model\
 env
 build/
 __pycache__/
+FL_System/client/save_model

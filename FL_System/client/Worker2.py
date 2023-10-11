@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    # public_ip='localhost'
+    public_ip='localhost'
     # Bind the worker's socket to the specified port
     client_socket.bind((public_ip, client_port))  # Bind to all available network interfaces
 
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     print("Connected to server")
     current_port = client_socket.getsockname()[1]
     print("current port : ", current_port)
-    key='0x26615ca1a70887e89103010a4aa25853006ac3abf707eceb5c13ca11d57e273f'
+    key='0x29785f98009e1aa0bc165a9eb66bdaae7303f75933082df7dbcc5c53a222c464'
     worker = Worker( device, is_evil, topk,worker_id,key)
 
     # receive contract Address
@@ -87,6 +87,7 @@ if __name__ == '__main__':
     print("Length : ", len(received_json))
 
     num_Worker=len(received_json)-1
+    print("num_Worker : ", num_Worker)
     
     epoch=0
     results=[]
@@ -144,7 +145,7 @@ if __name__ == '__main__':
 
             client_sockets = []
 
-            for i in range(num_Worker-1):
+            for i in range(num_Worker):
                 client_socket, addr = server_socket_peer.accept()
                 print("Connection from:", addr)
                 client_sockets.append(client_socket)

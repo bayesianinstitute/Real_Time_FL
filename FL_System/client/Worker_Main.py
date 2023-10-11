@@ -151,7 +151,7 @@ class Model():
             
 
 class Worker(Thread):
-    truffle_file = json.load(open('./build/contracts/FLTask.json'))
+    truffle_file=json.load(open('../../build/contracts/FLTask.json'))
 
     
 

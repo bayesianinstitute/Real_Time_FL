@@ -17,7 +17,7 @@ from collections import OrderedDict
 
 from config_app import HOST,PORT
 
-
+import sys
 
 
 
@@ -288,6 +288,11 @@ class Application:
             #     print("Error sending data",e)
 
             print("Send file to all clusters")
+
+            print("Done from Application")
+
+            # Exit the program
+            sys.exit()
 
             
             # Receive serialized data f1rom each client
