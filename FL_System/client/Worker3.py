@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # Reuse the socket address to avoid conflicts when restarting the program
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    public_ip='localhost'
+    # public_ip='localhost'
     # Bind the worker's socket to the specified port
     client_socket.bind((public_ip, client_port))  # Bind to all available network interfaces
 
