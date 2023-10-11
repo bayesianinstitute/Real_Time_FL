@@ -140,7 +140,7 @@ if __name__ == '__main__':
             print("I am the header")
 
             server_socket_peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket_peer.bind(('localhost', client_port_next))  # Bind to all available network interfaces
+            server_socket_peer.bind((public_ip, client_port_next))  # Bind to all available network interfaces
             server_socket_peer.listen(num_Worker)
 
             client_sockets = []
