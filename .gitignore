@@ -9,3 +9,4 @@ encrypted_model\
 encrypted_model\
 env
 build/
+__pycache__/
