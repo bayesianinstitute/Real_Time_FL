@@ -59,7 +59,7 @@ torch==2.0.1
 torchaudio==2.0.2
 torchvision==0.15.2
 triton==2.0.0
-typing-extensions==4.2.0
+
 urllib3==1.26.9
 varint==1.0.2
 web3==5.29.1
