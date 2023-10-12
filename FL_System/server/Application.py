@@ -251,6 +251,9 @@ class Application:
             try:
                 for idx,client_socket in enumerate(client_sockets[:3]):
                     print("Sending json file to client for Cluster 1:",idx+1)
+                    import time
+                    time.sleep(4)
+                    
                     self.send_data(client_socket, file_json_1)
                     self.send_data(client_socket,worker_head_id_1)
                     # self.send_data(client_socket,worker_head_id_2)
