@@ -12,14 +12,9 @@ import socket
 import pickle
 import json 
 import random
-
 from collections import OrderedDict
-
 from config_app import HOST,PORT
-
 import sys
-
-
 
 # Main class to simulate the distributed application
 class Application:
@@ -134,12 +129,6 @@ class Application:
     
     def run(self):
         load_dotenv()
-        # requesterKey=str(input("Eneter your Private Key : "))
-        # requesterKey='0x0d8de13c6faecf4520c71859489eacbed510cad1c5d59fc05cb9a64235f3b4ba'
-        # self.requester = Requester(requesterKey)
-        # contract_address=self.requester.deploy_contract()
-        # print("Contract Address:", contract_address)
-        # self.requester.init_task( self.fspath, self.num_rounds)
         print("Task initialized")
 
         # Create a socket
@@ -168,33 +157,7 @@ class Application:
             }
             worker_info_list.append(client_info)
 
-        # Save the worker information to JSON file
-        # self.save_worker_data_to_json(worker_info_list)
-        # print("Worker information saved")
-
-        
         print("Received all client connections")
-
-
-        # try:
-        #         for idx,client_socket in enumerate(client_sockets):
-                    
-        #             print("Sending Contract Address to client:",idx+1)
-        #             self.send_data(client_socket, contract_address)
-
-        # except ConnectionResetError:
-        #         # Handle the case when a client disconnects unexpectedly
-        #         print("Client", idx + 1, "disconnected.")
-        #         client_sockets.pop(idx)
-
-
-
-        
-
-        # self.requester.start_task()
-
-        # print("Requester Start Task")
-
         new_port=[]        
         # Receive Meta Data
         for idx, client_socket in enumerate(client_sockets):
@@ -213,41 +176,18 @@ class Application:
             worker_info_list[idx]['location'] = locations
             worker_info_list[idx]['cluster_head_port']=cluster_head
         
-        # Storing worker blockchan Address
-        # for idx, client_socket in enumerate(client_sockets):
-        #     worder_addr = self.receive_data(client_socket)
-        #     self.worker_address[idx] = worder_addr
-
-
-        # print("Worker Address",self.worker_address)
-
         # Save the updated worker information with new ports to the JSON file
         self.save_worker_data_to_json(worker_info_list)
         print("Worker information with new ports saved")
-
-
         while True :
-
-            # file_json=self.load_worker_data_from_json()
-
             file_name_1='C1_worker_data.json'
             # file_name_2='C2_worker_data.json'
 
             file_json_1=self.load_worker_data_from_json(file_name_1)
-            # file_json_2=self.load_worker_data_from_json(file_name_2)
-
-
-
-
             worker_head_ids_1 = self.load_worker_head_ids(file_name_1)
             worker_head_id_1 = self.shuffle_worker_head(worker_head_ids_1)
 
-            # worker_head_ids_2 = self.load_worker_head_ids(file_name_2)
-            # worker_head_id_2 = self.shuffle_worker_head(worker_head_ids_2)
-
-
             print("suffle_id id ",worker_head_id_1)
-
             try:
                 for idx,client_socket in enumerate(client_sockets[:3]):
                     print("Sending json file to client for Cluster 1:",idx+1)
@@ -257,38 +197,13 @@ class Application:
                     self.send_data(client_socket, file_json_1)
                     self.send_data(client_socket,worker_head_id_1)
                     # self.send_data(client_socket,worker_head_id_2)
-
-
             except ConnectionResetError:
                 # Handle the case when a client disconnects unexpectedly
                 print("Client", idx + 1, "disconnected.")
                 client_sockets.pop(idx)
 
-
-
-
             except Exception as e:
                 print("Error sending data",e)
-
-            # try:
-            #     for idx,client_socket in enumerate(client_sockets[3:]):
-            #         print("Sending json file to client for Cluster 2:",idx+1)
-            #         self.send_data(client_socket, file_json_2)
-            #         self.send_data(client_socket,worker_head_id_2)
-            #         self.send_data(client_socket,worker_head_id_1)
-
-
-
-            # except ConnectionResetError:
-            #     # Handle the case when a client disconnects unexpectedly
-            #     print("Client", idx + 1, "disconnected.")
-            #     client_sockets.pop(idx)
-
-
-
-
-            # except Exception as e:
-            #     print("Error sending data",e)
 
             print("Send file to all clusters")
 
@@ -297,88 +212,4 @@ class Application:
             # Exit the program
             sys.exit()
 
-            
-            # Receive serialized data f1rom each client
-            worker_weights = []
-            for idx, client_socket in enumerate(client_sockets[:3]):
-                unsorted_scores = self.receive_data(client_socket)
-                unsorted_scores = [score[0][0].cpu().item() for score in unsorted_scores]
-                
-                # Ensure there is one score per worker (num_workers)
-                while len(unsorted_scores) < self.num_workers:
-                    unsorted_scores.append(-1)
-                
-                unsorted_scores = (idx, unsorted_scores)
-                print("Unsorted scores",unsorted_scores)
-
-                self.requester.push_scores(unsorted_scores, self.num_workers)
-                print("score sent by idx:", idx)
         
-
-
-            overall_scores = self.requester.calc_overall_scores(
-                self.requester.get_score_matrix(), self.num_workers)
-            
-            print("get score matrix:", self.requester.get_score_matrix())
-            round_top_k = self.requester.compute_top_k(
-                list(self.worker_address.values())[:3], overall_scores)
-            
-            penalize = self.requester.find_bad_workers(
-                list(self.worker_address.values())[:3], overall_scores)
-            print("penalize :", penalize)
-            self.requester.penalize_worker(penalize)
-            self.requester.refund_worker(list(self.worker_address.values())[:3])
-
-            
-            
-            self.requester.submit_top_k(round_top_k)
-            
-            self.requester.distribute_rewards()
-            print("Distributed rewards for Cluster 1. ")
-
-            # for idx, client_socket in enumerate(client_sockets[3:]):
-            #     unsorted_scores = self.receive_data(client_socket)
-            #     unsorted_scores = [score[0][0].cpu().item() for score in unsorted_scores]
-                
-            #     # Ensure there is one score per worker (num_workers)
-            #     while len(unsorted_scores) < self.num_workers:
-            #         unsorted_scores.append(-1)
-                
-            #     unsorted_scores = (idx, unsorted_scores)
-            #     print("Unsorted scores",unsorted_scores)
-
-            #     self.requester.push_scores(unsorted_scores, self.num_workers)
-            #     print("score sent by idx:", idx)
-        
-
-
-            # overall_scores = self.requester.calc_overall_scores(
-            #     self.requester.get_score_matrix(), self.num_workers)
-            
-            # print("get score matrix:", self.requester.get_score_matrix())
-            # round_top_k = self.requester.compute_top_k(
-            #     list(self.worker_address.values())[3:], overall_scores)
-            
-            # penalize = self.requester.find_bad_workers(
-            #     list(self.worker_address.values())[3:], overall_scores)
-            # print("penalize :", penalize)
-            # self.requester.penalize_worker(penalize)
-            # self.requester.refund_worker(list(self.worker_address.values())[3:])
-
-            
-            
-            # self.requester.submit_top_k(round_top_k)
-            
-            # self.requester.distribute_rewards()
-            # print("Distributed rewards for Cluster 2. Next round starting soon...")
-
-            # self.requester.next_round()
-                   
-            print("Connection Closed")
-            server_socket.close()
-            return 0
-
-
- 
-
-

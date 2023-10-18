@@ -114,10 +114,7 @@ class Requester:
     def get_score_matrix(self):
         return self.score_matrix
 
-    # calculate the top K of the round using the contribution scoring procedure from blockflow
-    # inputs: score matrix dimension n x n where n = num_workers, number of workers
-    # output: round top k with index of best performing workers
-
+    
     def calc_overall_scores(self, score_matrix, num_workers):
         m = []  # median scores of each worker (m_k)
         m_scaled = []  # scaled median scores of each worker (m_k)

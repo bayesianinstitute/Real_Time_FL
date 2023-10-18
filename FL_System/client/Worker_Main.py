@@ -65,10 +65,7 @@ class Model():
             batch_size=self.batch_size, shuffle=True)
         
         self.garbage = torch.rand((64,1,28,28))
-        
-        # find the datasets indices
-        # also this would not be implemented like this in the real application
-        # the users would use an 80/20 random split of their own dataset for training/validating
+
         self.num_train_batches = len(self.train_loader)//self.num_workers
         self.num_test_batches = len(self.test_loader)//self.num_workers 
         # start idx
@@ -146,43 +143,21 @@ class Model():
         sorted_models = sorted(res, key=lambda t: t[0])
         # return self.rank_models(sorted_models),  self.get_top_k(sorted_models), res
         return res
-            
-            
-            
-
+                        
 class Worker(Thread):
     truffle_file=json.load(open('../../build/contracts/FLTask.json'))
 
-    
 
     def __init__(self,  device, is_evil, topk,worker_id,keyy):
-        # self.bcc = BCCommunicator()
-        # self.fsc = FSCommunicator(ipfs_path, device)
+
         load_dotenv()
-
-
-        #  ipfs connection and blockchain key
-        # self.key = str(input("Enter the private key"))
         self.key = keyy
-        
-        # self.client_url = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
 
-
-        # self.model_hash = 'QmZaeFLUPJZopTvKWsuji2Q5RPWaTLBRtpCoBbDM6sDyqM'
-        # model_bytes = self.client_url.cat(self.model_hash)
-        # model = torch.jit.load(io.BytesIO(model_bytes),
-        #                        map_location=device)
         model= torch.load("fs-sim/model.pt")
         print("Done Model!!!!!!")
 
-        # optimizer_hash = 'Qmd96G9irL6hQuSfGFNoYqeVgg8DvAyv6GCt9CqCsEDj1w'
-        # optimizer_bytes = self.client_url.cat(optimizer_hash)
-        # opt = torch.load(io.BytesIO(
-        #     optimizer_bytes), map_location=device)
         opt=torch.load("fs-sim/optimizer.pt")
         print("Done Optimizer !!!!!")
-
-
 
         self.is_evil = is_evil
 
@@ -203,12 +178,8 @@ class Worker(Thread):
 
         self.PROJECT_API=os.getenv('PROJECT_API')
         print("PROJECT_API :",self.PROJECT_API)
-        # init web3.py instance
 
-        # blockchain Connection
         self.w3 = Web3(HTTPProvider(self.PROJECT_API))
-
-
         if self.w3.isConnected():
             print("Worker initialization: connected to blockchain")
 
@@ -232,8 +203,6 @@ class Worker(Thread):
         tx_receipt = self.w3.eth.getTransactionReceipt(tx_hash)
 
         
- 
-
 
     def workerAddress(self):
         print("Addressing: ", self.account.address)
