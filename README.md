@@ -1,61 +1,71 @@
-## Setup
-a. Create a virtual environment and install the requirements.txt.
+## Installation
 
-b. Install  Ipfs 
+### Virtual Environment
+1. Create a virtual environment
+   Run the following command to create a virtual environment named "env" (you can replace "env" with your preferred name):
 
-## Running
-The script is built to run on top of a Ganache testnet. It also requires Truffle to compile the smart contract.
-
-1. Ganache
-
-- Open Ganache and click on settings in the top right corner.
-- Under **Server** tab:
-  - Set Hostname to 127.0.0.1 -lo
-  - Set Port Number to 7545
-  - Enable Automine
-- Under **Accounts & Keys** tab:
-  - Enable Autogenerate HD Mnemonic
-
-2. IPFS
-
-
-
-- Fire up your terminal and run `ipfs init`
-- Then run
-
-  ```
-  ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '[\"*\"]'
-  ipfs config --json API.HTTPHeaders.Access-Control-Allow-Credentials '[\"true\"]'
-  ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '[\"PUT\", \"POST\", \"GET\"]'
-  ```
--  Run `ipfs daemon` in terimal.  
-
-- upload fs-sim folder on your local ipfs
-
-### Compile and migrate the smart contract running 
-```
-truffle compile
+```bash
+python -m venv env
 ```
 
-```
-truffle migrate
+2. Activate the Virtual Environment:
+   To activate the virtual environment, run:
+
+```bash
+source env/bin/activate
 ```
 
+3. Install Packages and Run Your Project:
+   After activating the virtual environment, you can install packages and run your project as usual:
 
-Create a `.env` file containing the private keys of requester and workers in the following format:
-```
-REQUESTER_KEY=0x...
-WORKER1_KEY=0x...
-WORKER2_KEY=0x...
-WORKER3_KEY=0x...
-...
-```
-
-
-Run the following python command
-```
-python main.py --num_workers 3 --num_rounds 10 
+```bash
+pip install -r requirements.txt
+chmod +x run_server.sh
+.\run_server.sh
 ```
 
-If you want to simulate a training session with evil workers, add the parameter `--num-evil` with the desired number of evil workers. 
+5. Deactivate the Virtual Environment:
+   When you're done working in the virtual environment, you can deactivate it using the following command:
+
+```bash
+deactivate
+```
+
+The virtual environment will be deactivated, and you'll return to the regular Command Prompt.
+
+### Running
+
+### Server
+#### Steps
+1) Change Directory
+```bash
+FL_System/server
+```
+2) Check your system ip address and replace the host address in the config_app.py
+```bash
+HOST = ''
+```
+3) Run 
+```bash
+bash server.py
+```
+
+### Client 
+#### Steps
+1) Change Directory
+```bash
+FL_System/client
+```
+2) Put the same host address that put on server side in the config_app.py
+```bash
+HOST = ''
+```
+3) Run 
+```bash
+python3 Worker1.py
+```
+
+Note: Repeat the same process for other client as well
+
+
 
